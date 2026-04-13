@@ -209,7 +209,19 @@ const TH=[
 const TM=Object.fromEntries(TH.map(t=>[t.n,t]));
 const clf=s=>{const t=(s||'').toLowerCase();let b=null,bs=0;TH.forEach(td=>{const sc=td.k.filter(k=>t.includes(k)).length;if(sc>bs){bs=sc;b=td.n;}});return b||'Other';};
 const ptag=s=>{if(!s)return[];return s.split(/[,\n;*]+/).map(t=>t.trim().replace(/^\*+/,'').trim()).filter(t=>t.length>2&&t.length<45&&!t.startsWith('http')&&!['please','i need','i cannot','=gemini','provide the','article content','the cell','missing'].some(x=>t.toLowerCase().includes(x)));};
-const pd=s=>{const d=new Date(s);return isNaN(d)?null:d;};
+const pd=s=>{
+  if(!s)return null;
+  // Try native parse first
+  let d=new Date(s);
+  if(!isNaN(d))return d;
+  // Handle "12 Dec 2025 18:13 +0000" format (missing seconds)
+  const m=s.match(/^(\d{1,2})\s+(\w{3})\s+(\d{4})\s+(\d{2}):(\d{2})/);
+  if(m){d=new Date(`${m[1]} ${m[2]} ${m[3]} ${m[4]}:${m[5]}:00 +0000`);if(!isNaN(d))return d;}
+  // Handle "MM/DD/YYYY" format
+  const m2=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m2){d=new Date(`${m2[3]}-${m2[1].padStart(2,'0')}-${m2[2].padStart(2,'0')}`);if(!isNaN(d))return d;}
+  return null;
+};
 const eh=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const mf=d=>d.toLocaleDateString('en-US',{month:'short',year:'2-digit'});
 
