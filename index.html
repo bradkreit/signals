@@ -361,25 +361,37 @@ async function loadAll(){
       const tags=(r[3]||'').trim();
       if(!url.startsWith('http'))continue;
       const date=pd(ds);if(!date)continue;
+      // Accept all rows with valid URL + date, classify from content+tags
       const tagList=ptag(tags);
-      // Accept rows even without tags - classify from content
       const theme=clf(tags,content);
-      if(theme==='Other'&&!tagList.length)continue;
       ROWS.push({url,date,content,tags,tagList,theme});
     }
     ROWS.sort((a,b)=>b.date-a.date);
 
 
-    const wp=/\d{1,2}\/\d{1,2}\/\d{4}\s*[-–]\s*\d{1,2}\/\d{1,2}\/\d{4}|\d+\/\d+\/\d+\s*[-–]\s*\d+\/\d+\/\d+/;
-    const raw=[];
-    for(const r of sr){
-      let wl='';
-      for(const c of r){const cs=String(c||'');if(wp.test(cs))wl=cs.trim();}
-      const lng=r.reduce((a,b)=>{const bs=String(b||'');return bs.length>a.length?bs:a;},'');
-      if(wl&&lng.length>50)raw.push({week:wl,text:lng});
+    const wp=/\d{1,2}\/\d{1,2}\/\d{4}\s*[-–]\s*\d{1,2}\/\d{1,2}\/\d{4}/;
+    // Flatten all cells from all rows into one stream, then group by week label
+    const allCells=sr.flatMap(r=>r.map(c=>String(c||'').trim())).filter(c=>c.length>0);
+    const dm={};
+    let curWeek=null;
+    for(const cell of allCells){
+      if(wp.test(cell)){
+        // This cell IS a week range label
+        curWeek=cell.match(wp)[0].trim();
+        if(!dm[curWeek])dm[curWeek]={week:curWeek,text:''};
+      } else if(curWeek&&cell.length>20){
+        // Accumulate text under current week
+        dm[curWeek].text+=(dm[curWeek].text?' \n':'')+cell;
+      }
     }
-    const dm={};raw.forEach(s=>{if(!dm[s.week]||s.text.length>dm[s.week].text.length)dm[s.week]=s;});
-    SUMS=Object.values(dm).sort((a,b)=>new Date(a.week.split(/[-–]/)[0])-new Date(b.week.split(/[-–]/)[0]));
+    SUMS=Object.values(dm)
+      .filter(s=>s.text.length>50)
+      .sort((a,b)=>{
+        const pa=a.week.split(/[-–]/)[0].trim(),pb=b.week.split(/[-–]/)[0].trim();
+        const da=new Date(pa.replace(/(\d{1,2})\/(\d{1,2})\/(\d{4})/,'$3-$1-$2'));
+        const db=new Date(pb.replace(/(\d{1,2})\/(\d{1,2})\/(\d{4})/,'$3-$1-$2'));
+        return da-db;
+      });
 
     console.log('LiveFeed rows:', lr.length, 'Archive rows:', ar.length, 'Processed signals:', ROWS.length);
     if(!ROWS.length)throw new Error('No signals found. LiveFeed had '+lr.length+' rows, Archive had '+ar.length+' rows. Check sheet tab names and public access.');
