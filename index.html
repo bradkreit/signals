@@ -272,8 +272,33 @@ async function loadAll(){
     console.log('Date parse test:', ar[1]?.[1], '->', pd(ar[1]?.[1]));
 
     ROWS=[];
+    // Find the right columns dynamically - handle both LiveFeed and Archive layouts
+    function parseRow(r, isArchive){
+      // Try standard layout first: col0=url, col1=date, col2=content, col3=tags
+      let url=(r[0]||'').trim();
+      let ds=(r[1]||'').trim();
+      let content=(r[2]||'').trim();
+      let tags=(r[3]||'').trim();
+      
+      // If date field doesn't look like a date, scan all columns
+      if(!pd(ds)){
+        for(let i=0;i<Math.min(r.length,6);i++){
+          const v=(r[i]||'').trim();
+          if(pd(v)){ds=v; break;}
+        }
+      }
+      // If tags field looks wrong (too long or no commas/newlines for short text), scan
+      if(!ptag(tags).length){
+        for(let i=1;i<Math.min(r.length,6);i++){
+          const v=(r[i]||'').trim();
+          if(ptag(v).length>0&&v.length<200){tags=v; break;}
+        }
+      }
+      return {url,ds,content,tags};
+    }
+    
     for(const r of[...lr.slice(2),...ar.slice(1)]){
-      const url=(r[0]||'').trim(),ds=(r[1]||'').trim(),content=(r[2]||'').trim(),tags=(r[3]||'').trim();
+      const {url,ds,content,tags}=parseRow(r);
       if(!url.startsWith('http'))continue;
       const date=pd(ds);if(!date)continue;
       const tagList=ptag(tags);if(!tagList.length)continue;
