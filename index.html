@@ -351,54 +351,24 @@ async function loadAll(){
     lmsg.textContent='Fetching Summary… (Archive: '+ar.length+' rows)';
     const sr=await fetchCSV('Summary');
     lmsg.textContent='Processing '+lr.length+' LiveFeed + '+ar.length+' Archive rows…';
-    // Debug: log first few archive rows to console
-    console.log('Archive row 1:', JSON.stringify(ar[1]));
-    console.log('Archive row 2:', JSON.stringify(ar[2]));
-    console.log('Date parse test:', ar[1]?.[1], '->', pd(ar[1]?.[1]));
+
 
     ROWS=[];
-    // Find the right columns dynamically - handle both LiveFeed and Archive layouts
-    function parseRow(r, isArchive){
-      // Try standard layout first: col0=url, col1=date, col2=content, col3=tags
-      let url=(r[0]||'').trim();
-      let ds=(r[1]||'').trim();
-      let content=(r[2]||'').trim();
-      let tags=(r[3]||'').trim();
-      
-      // If date field doesn't look like a date, scan all columns
-      if(!pd(ds)){
-        for(let i=0;i<Math.min(r.length,6);i++){
-          const v=(r[i]||'').trim();
-          if(pd(v)){ds=v; break;}
-        }
-      }
-      // If tags field looks wrong (too long or no commas/newlines for short text), scan
-      if(!ptag(tags).length){
-        for(let i=1;i<Math.min(r.length,6);i++){
-          const v=(r[i]||'').trim();
-          if(ptag(v).length>0&&v.length<200){tags=v; break;}
-        }
-      }
-      return {url,ds,content,tags};
-    }
-    
     for(const r of[...lr.slice(2),...ar.slice(1)]){
-      const {url,ds,content,tags}=parseRow(r);
+      const url=(r[0]||'').trim();
+      const ds=(r[1]||'').trim();
+      const content=(r[2]||'').trim();
+      const tags=(r[3]||'').trim();
       if(!url.startsWith('http'))continue;
       const date=pd(ds);if(!date)continue;
-      const tagList=ptag(tags);if(!tagList.length)continue;
-      ROWS.push({url,date,content,tags,tagList,theme:clf(tags,content)});
+      const tagList=ptag(tags);
+      // Accept rows even without tags - classify from content
+      const theme=clf(tags,content);
+      if(theme==='Other'&&!tagList.length)continue;
+      ROWS.push({url,date,content,tags,tagList,theme});
     }
     ROWS.sort((a,b)=>b.date-a.date);
-    console.log('Total ROWS after processing:', ROWS.length);
-    // Check first few archive rows manually
-    let debugCount=0;
-    for(const r of ar.slice(1,6)){
-      const url=(r[0]||'').trim(),ds=(r[1]||'').trim(),tags=(r[3]||'').trim();
-      const date=pd(ds);
-      const tagList=ptag(tags);
-      console.log('Archive sample - url_ok:',url.startsWith('http'),'date:',ds,'->',date,'tags_ok:',tagList.length>0,'tags:',tagList.slice(0,2));
-    }
+
 
     const wp=/\d{1,2}\/\d{1,2}\/\d{4}\s*[-–]\s*\d{1,2}\/\d{1,2}\/\d{4}|\d+\/\d+\/\d+\s*[-–]\s*\d+\/\d+\/\d+/;
     const raw=[];
