@@ -283,7 +283,17 @@ const clf=(tags,postContent)=>{
   TH.forEach(td=>{const sc=td.k.filter(k=>t.includes(k)).length;if(sc>bs){bs=sc;b=td.n;}});
   return b||'Other';
 };
-const ptag=s=>{if(!s)return[];return s.split(/[,\n;*]+/).map(t=>t.trim().replace(/^\*+/,'').trim()).filter(t=>t.length>2&&t.length<45&&!t.startsWith('http')&&!['please','i need','i cannot','=gemini','provide the','article content','the cell','missing'].some(x=>t.toLowerCase().includes(x)));};
+const ptag=s=>{if(!s)return[];return s.split(/[,\n;*]+/).map(t=>t.trim().replace(/^\*+/,'').trim()).filter(t=>{
+  if(!t||t.length<3||t.length>45)return false;
+  if(t.startsWith('http'))return false;
+  if(/\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}/.test(t))return false;
+  if(/^\d{1,2}\/\d{1,2}\/\d{4}/.test(t))return false;
+  if(/\+0000/.test(t))return false;
+  if(/^#[A-Za-z]/.test(t))return false;
+  const bad=['please','i need','i cannot','=gemini','provide the','article content','the cell','missing','bluesky','socialmedia','social media'];
+  if(bad.some(x=>t.toLowerCase().includes(x)))return false;
+  return true;
+});};
 const pd=s=>{
   if(!s)return null;
   // Try native parse first
@@ -390,7 +400,7 @@ async function loadAll(){
       console.log('Archive sample - url_ok:',url.startsWith('http'),'date:',ds,'->',date,'tags_ok:',tagList.length>0,'tags:',tagList.slice(0,2));
     }
 
-    const wp=/\d+\/\d+\/\d+\s*[-–]\s*\d+\/\d+\/\d+/;
+    const wp=/\d{1,2}\/\d{1,2}\/\d{4}\s*[-–]\s*\d{1,2}\/\d{1,2}\/\d{4}|\d+\/\d+\/\d+\s*[-–]\s*\d+\/\d+\/\d+/;
     const raw=[];
     for(const r of sr){
       let wl='';
@@ -496,7 +506,9 @@ function render(){
   const wbEl=document.getElementById('wb');wbEl.innerHTML='';
   SUMS.forEach(s=>{
     const lt=s.text.toLowerCase(),mth=TH.filter(td=>td.k.some(k=>lt.includes(k))).slice(0,3);
-    const[ws,we2]=s.week.split(/[-–]/).map(x=>new Date(x.trim()));
+    const wparts=s.week.split(/[-–]/).map(x=>x.trim());
+    const parseWD=x=>{const p=x.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);return p?new Date(p[3]+'-'+p[1].padStart(2,'0')+'-'+p[2].padStart(2,'0')):new Date(x);};
+    const[ws,we2]=[parseWD(wparts[0]),parseWD(wparts[1])];
     const wkr=rows.filter(r=>r.date>=ws&&r.date<=new Date(we2.getTime()+864e5));
     const lines=s.text.split('\n').map(l=>l.trim()).filter(l=>l);
     const buls=lines.filter(l=>/^\*\s/.test(l)).slice(0,4).map(l=>l.replace(/^\*+\s*/,'').replace(/\*\*/g,'').trim()).filter(l=>l.length>10);
