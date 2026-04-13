@@ -193,7 +193,7 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
 </div>
 <script>
 const SID='1hMRxFT9kAaGQ7rGU9G8R5cpfrMM8I8nyrxLiJ1KFoBg';
-const CSV=name=>`https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}&range=A1:Z10000`;
+const CSV=name=>`https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}`;
 
 const TH=[
   {n:'AI risks & failures',c:'#C84B2F',bg:'#FAE8E4',fg:'#8B2E1A',k:['hallucination','police report','akron','malfunction','fail','safety','bias','misuse','illusion of correctness','rogue','out of control','reliability','quietly fail']},
@@ -249,11 +249,11 @@ async function loadAll(){
   try{
     lmsg.textContent='Fetching LiveFeed…';
     const lr=await fetchCSV('LiveFeed');
-    lmsg.textContent='Fetching Archive…';
+    lmsg.textContent='Fetching Archive… (LiveFeed: '+lr.length+' rows)';
     const ar=await fetchCSV('Archive');
-    lmsg.textContent='Fetching Summary…';
+    lmsg.textContent='Fetching Summary… (Archive: '+ar.length+' rows)';
     const sr=await fetchCSV('Summary');
-    lmsg.textContent='Processing…';
+    lmsg.textContent='Processing '+lr.length+' LiveFeed + '+ar.length+' Archive rows…';
 
     ROWS=[];
     for(const r of[...lr.slice(2),...ar.slice(1)]){
@@ -276,7 +276,8 @@ async function loadAll(){
     const dm={};raw.forEach(s=>{if(!dm[s.week]||s.text.length>dm[s.week].text.length)dm[s.week]=s;});
     SUMS=Object.values(dm).sort((a,b)=>new Date(a.week.split(/[-–]/)[0])-new Date(b.week.split(/[-–]/)[0]));
 
-    if(!ROWS.length)throw new Error('No signals found. Check that sheet tabs are named: LiveFeed, Archive, Summary and the sheet is publicly viewable.');
+    console.log('LiveFeed rows:', lr.length, 'Archive rows:', ar.length, 'Processed signals:', ROWS.length);
+    if(!ROWS.length)throw new Error('No signals found. LiveFeed had '+lr.length+' rows, Archive had '+ar.length+' rows. Check sheet tab names and public access.');
     render();
     document.getElementById('loading').style.display='none';
     document.getElementById('dash').style.display='block';
