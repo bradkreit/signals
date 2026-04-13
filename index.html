@@ -266,6 +266,10 @@ async function loadAll(){
     lmsg.textContent='Fetching Summary… (Archive: '+ar.length+' rows)';
     const sr=await fetchCSV('Summary');
     lmsg.textContent='Processing '+lr.length+' LiveFeed + '+ar.length+' Archive rows…';
+    // Debug: log first few archive rows to console
+    console.log('Archive row 1:', JSON.stringify(ar[1]));
+    console.log('Archive row 2:', JSON.stringify(ar[2]));
+    console.log('Date parse test:', ar[1]?.[1], '->', pd(ar[1]?.[1]));
 
     ROWS=[];
     for(const r of[...lr.slice(2),...ar.slice(1)]){
@@ -276,6 +280,15 @@ async function loadAll(){
       ROWS.push({url,date,content,tags,tagList,theme:clf(tags)});
     }
     ROWS.sort((a,b)=>b.date-a.date);
+    console.log('Total ROWS after processing:', ROWS.length);
+    // Check first few archive rows manually
+    let debugCount=0;
+    for(const r of ar.slice(1,6)){
+      const url=(r[0]||'').trim(),ds=(r[1]||'').trim(),tags=(r[3]||'').trim();
+      const date=pd(ds);
+      const tagList=ptag(tags);
+      console.log('Archive sample - url_ok:',url.startsWith('http'),'date:',ds,'->',date,'tags_ok:',tagList.length>0,'tags:',tagList.slice(0,2));
+    }
 
     const wp=/\d+\/\d+\/\d+\s*[-–]\s*\d+\/\d+\/\d+/;
     const raw=[];
