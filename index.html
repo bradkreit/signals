@@ -196,18 +196,93 @@ const SID='1hMRxFT9kAaGQ7rGU9G8R5cpfrMM8I8nyrxLiJ1KFoBg';
 const CSV=name=>`https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}`;
 
 const TH=[
-  {n:'AI risks & failures',c:'#C84B2F',bg:'#FAE8E4',fg:'#8B2E1A',k:['hallucination','police report','akron','malfunction','fail','safety','bias','misuse','illusion of correctness','rogue','out of control','reliability','quietly fail']},
-  {n:'AI capabilities',c:'#2D5FA0',bg:'#E6EEF7',fg:'#1B3E6B',k:['ai assistant','copilot','chatgpt','anthropic','openai','llm','generative','machine learning','automation','robot','agent','vending machine','agentic']},
-  {n:'Mental health',c:'#5B4FA0',bg:'#EDE9F7',fg:'#3A3070',k:['mental health','emotional energy','wellbeing','anxiety','burnout','emotional','trumpism','exhaustion','loneliness']},
-  {n:'Digital friction & UX',c:'#2A7A52',bg:'#E5F1EA',fg:'#1A5C38',k:['friction','ufi','digital services','ux','user experience','interface','clicktatorship']},
-  {n:'Education',c:'#B8760F',bg:'#FBF0DE',fg:'#7A5009',k:['education','grade inflation','standardized tests','school','reading','literature','university','college','academic']},
-  {n:'Misinformation',c:'#D4537E',bg:'#FBEAF0',fg:'#72243E',k:['misinformation','deepfake','fake','disinformation','propaganda','health misinformation']},
-  {n:'Economics & labor',c:'#1D8A8A',bg:'#E4F3F3',fg:'#115555',k:['labor','job market','economy','market','unemployment','wage','economic','sam altman','future jobs','capital','prediction market','gambling','polymarket','kalshi','betting']},
-  {n:'Politics & power',c:'#C05030',bg:'#FAF0ED',fg:'#7A3020',k:['politics','trump','government','policy','election','political','pentagon','hegseth','congress','administration','tariff','immigration']},
-  {n:'Privacy & security',c:'#888780',bg:'#F1EFE8',fg:'#444441',k:['privacy','security','surveillance','cybersecurity','hack','breach','epstein','crypto','bitcoin']},
+  {n:'AI risks & failures',c:'#C84B2F',bg:'#FAE8E4',fg:'#8B2E1A',k:[
+    'hallucination','police report','akron','malfunction','fail','safety','bias','misuse',
+    'illusion of correctness','rogue','out of control','reliability','quietly fail',
+    'ai reliability','ai failure','ai error','ai risk','ai harm','robot safety',
+    'ai robotics','ai policing','public safety','non-emergency','ai coding','ai-generated',
+    'ai lawsuits','ai agents','agentic','autonomous','self-driving','waymo',
+    'cognitive surrender','cognitive offloading','ai overreliance','ai dependency',
+    'ai hallucin','fake disease','recommendation poisoning','ai slop','ai content'
+  ]},
+  {n:'AI capabilities',c:'#2D5FA0',bg:'#E6EEF7',fg:'#1B3E6B',k:[
+    'ai assistant','copilot','chatgpt','anthropic','openai','llm','generative',
+    'machine learning','automation','robot','agent','vending machine','agentic',
+    'artificial intelligence','ai tool','ai model','ai system','ai platform',
+    'gpt','claude','gemini','grok','llm','large language','foundation model',
+    'ai capabilities','ai development','ai research','ai regulation','ai impact',
+    'ai technology','ai integration','ai adoption','digital twin','ai agent',
+    'north korean','moltbook','openclaw','ai startup','ai company','ai lab'
+  ]},
+  {n:'Mental health',c:'#5B4FA0',bg:'#EDE9F7',fg:'#3A3070',k:[
+    'mental health','emotional energy','wellbeing','anxiety','burnout','emotional',
+    'trumpism','exhaustion','loneliness','loneliness','depression','stress',
+    'emotional weight','physical weight','mental fatigue','ai brain fry',
+    'attention','focus','distraction','mindfulness','cognitive','brain',
+    'friendship','social connection','isolation','belonging','community',
+    'weight of','drag on','heaviness','lethargy'
+  ]},
+  {n:'Digital friction & UX',c:'#2A7A52',bg:'#E5F1EA',fg:'#1A5C38',k:[
+    'friction','ufi','digital services','ux','user experience','interface','clicktatorship',
+    'universal friction','digital friction','design','product design','user interface',
+    'algorithmic','algorithm','feed','social media','engagement','attention economy',
+    'ads','advertising','ad','notification','spam','inbox','email','dark pattern',
+    'predatory design','addictive','addiction','infinite scroll','recommendation',
+    'in-car','smart tv','fridge','refrigerator','iot','connected device',
+    'velocity','acceleration','rushed','manic','extraction','lolviathan','algocracy'
+  ]},
+  {n:'Education',c:'#B8760F',bg:'#FBF0DE',fg:'#7A5009',k:[
+    'education','grade inflation','standardized tests','school','reading','literature',
+    'university','college','academic','degree','credential','student','teacher',
+    'classroom','curriculum','novel','book','reading habits','higher education',
+    'charter school','ai school','homework','learning','knowledge','skill',
+    'job market','workforce','entry level','career','hiring','talent'
+  ]},
+  {n:'Misinformation',c:'#D4537E',bg:'#FBEAF0',fg:'#72243E',k:[
+    'misinformation','deepfake','fake','disinformation','propaganda','health misinformation',
+    'fake news','false','misleading','conspiracy','bot','bots','ai bot','bot swarm',
+    'manipulat','influence','synthetic','fabricat','deepfake','ai-generated doctor',
+    'ai influencer','fake influencer','polluted research','manipulated research',
+    'ai seo','seo industry','search manipulation','ai overviews','google ai'
+  ]},
+  {n:'Economics & labor',c:'#1D8A8A',bg:'#E4F3F3',fg:'#115555',k:[
+    'labor','job market','economy','market','unemployment','wage','economic',
+    'sam altman','future jobs','capital','prediction market','gambling','polymarket',
+    'kalshi','betting','bet','wager','prediction','forecast','odds',
+    'job','work','worker','workforce','employment','hire','layoff','productivity',
+    'tariff','trade','inflation','recession','gdp','growth','wealth','income',
+    'inequality','capital vs labor','corporate','shareholder','profit','revenue',
+    'crypto','bitcoin','blockchain','token','nft','stablecoin','defi',
+    'stock','market','invest','fund','vc','venture capital','startup',
+    'storytelling','corporate storytelling','job trends','wildlife conservation',
+    'foresight','strategic foresight','scenario','planning','futures'
+  ]},
+  {n:'Politics & power',c:'#C05030',bg:'#FAF0ED',fg:'#7A3020',k:[
+    'politics','trump','government','policy','election','political','pentagon',
+    'hegseth','congress','administration','tariff','immigration','republican',
+    'democrat','senate','house','white house','president','executive','federal',
+    'doge','ice','deportation','musk','elon','rfk','vance','bannon',
+    'epstein','power','authoritarian','democracy','fascism','meme','viral',
+    'foreign policy','national security','geopolit','ukraine','russia','china',
+    'war','military','defense','nato','sanctions','diplomat'
+  ]},
+  {n:'Privacy & security',c:'#888780',bg:'#F1EFE8',fg:'#444441',k:[
+    'privacy','security','surveillance','cybersecurity','hack','breach','epstein',
+    'crypto','bitcoin','data','tracking','biometric','facial recognition',
+    'smart glasses','metadata','location','personal data','data collection',
+    'north korea','malware','phishing','ransomware','vulnerability','exploit',
+    'insider trading','insider','leak','whistleblower','classified','secret',
+    'identity','verification','proof of human','worldcoin','retinal scan'
+  ]},
 ];
 const TM=Object.fromEntries(TH.map(t=>[t.n,t]));
-const clf=s=>{const t=(s||'').toLowerCase();let b=null,bs=0;TH.forEach(td=>{const sc=td.k.filter(k=>t.includes(k)).length;if(sc>bs){bs=sc;b=td.n;}});return b||'Other';};
+const clf=(tags,postContent)=>{
+  // Classify against both tags AND post content for better coverage
+  const t=((tags||'')+' '+(postContent||'')).toLowerCase();
+  let b=null,bs=0;
+  TH.forEach(td=>{const sc=td.k.filter(k=>t.includes(k)).length;if(sc>bs){bs=sc;b=td.n;}});
+  return b||'Other';
+};
 const ptag=s=>{if(!s)return[];return s.split(/[,\n;*]+/).map(t=>t.trim().replace(/^\*+/,'').trim()).filter(t=>t.length>2&&t.length<45&&!t.startsWith('http')&&!['please','i need','i cannot','=gemini','provide the','article content','the cell','missing'].some(x=>t.toLowerCase().includes(x)));};
 const pd=s=>{
   if(!s)return null;
@@ -302,7 +377,7 @@ async function loadAll(){
       if(!url.startsWith('http'))continue;
       const date=pd(ds);if(!date)continue;
       const tagList=ptag(tags);if(!tagList.length)continue;
-      ROWS.push({url,date,content,tags,tagList,theme:clf(tags)});
+      ROWS.push({url,date,content,tags,tagList,theme:clf(tags,content)});
     }
     ROWS.sort((a,b)=>b.date-a.date);
     console.log('Total ROWS after processing:', ROWS.length);
