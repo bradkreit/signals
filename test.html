@@ -133,11 +133,7 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
       <div class="tab" onclick="sw('net')">Network</div>
     </div>
     <div class="tp active" id="tp-ov">
-      <div class="card" style="margin-bottom:16px;">
-        <div class="ctitle">Recent signals — last 14 days <span class="chint">click for detail</span></div>
-        <div class="slist" id="rsigs"></div>
-      </div>
-      <div class="r2">
+      <div class="r2" style="margin-bottom:16px;">
         <div class="card">
           <div class="ctitle">Theme distribution <span class="chint">click to explore</span></div>
           <div class="tbars" id="tbars"></div>
@@ -146,6 +142,10 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
           <div class="ctitle">Top keywords & tags <span class="chint">click to filter</span></div>
           <div class="tcloud" id="tcloud"></div>
         </div>
+      </div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="ctitle">Recent signals — last 14 days <span class="chint">click for detail</span></div>
+        <div class="slist" id="rsigs"></div>
       </div>
       <div class="card" style="margin-bottom:16px;">
         <div class="ctitle">Theme trends (monthly) <span class="chint">click segment</span></div>
@@ -583,7 +583,7 @@ function render(){
   document.getElementById('tcloud').innerHTML=tops.map(([tag,cnt],i)=>{const[bg,fg]=tcs[i%tcs.length].split(':'),sz=10+Math.round(cnt/mxF*5);return `<span class="tag" style="background:${bg};color:${fg};font-size:${sz}px;" onclick="openD('Tag: ${eh(tag).replace(/'/g,"\\'")}','${cnt} signals',null,'${eh(tag).replace(/'/g,"\\'")}')">${eh(tag)}</span>`;}).join('');
 
   const rrows=rows.filter(r=>r.date>=tw).slice(0,8);window._rr=rrows;
-  document.getElementById('rsigs').innerHTML=rrows.map((r,i)=>{const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();return `<div class="sitem" style="border-color:${td.c};" onclick="openSingle(${i})"><div class="stxt">${eh(txt.slice(0,300))}${txt.length>300?'…':''}</div><div class="smeta"><span>${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span><span style="background:${td.bg};color:${td.fg};padding:1px 7px;border-radius:2px;font-size:9px;">${r.theme}</span>${r.url?`<a href="${eh(r.url)}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue);font-family:var(--mono);font-size:10px;text-decoration:none;">↗ source</a>`:''}</div></div>`;}).join('');
+  document.getElementById('rsigs').innerHTML=rrows.map((r,i)=>{const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();return `<div class="sitem" style="border-color:${td.c};" onclick="openSingle(${i})"><div class="stxt">${eh(txt.slice(0,300))}${txt.length>300?'…':''}</div><div class="smeta"><span>${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span><span style="background:${td.bg};color:${td.fg};padding:1px 7px;border-radius:2px;font-size:9px;">${r.theme}</span>${r.url?`<a href="${eh(r.url)}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue);font-family:var(--mono);font-size:10px;text-decoration:none;background:var(--sur);border:1px solid var(--bor);padding:2px 8px;border-radius:3px;display:inline-flex;align-items:center;gap:3px;">↗ open</a>`:''}</div></div>`;}).join('');
 
   const cn=TH.map(t=>t.n),ci=Object.fromEntries(cn.map((c,i)=>[c,i])),n=cn.length;
   const mat=Array.from({length:n},()=>new Array(n).fill(0));
@@ -627,7 +627,7 @@ function cHtml(r){
   const td=TM[r.theme]||{bg:'#eee',fg:'#555'};
   const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
   const um=r.content.match(/https?:\/\/\S+/),aurl=um?um[0]:null;
-  return `<div class="dsig"><p class="dtxt">${eh(txt)}</p><div class="dmeta"><span class="dtheme" style="background:${td.bg};color:${td.fg};">${r.theme}</span><span class="ddate">${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>${aurl?`<a class="durl" href="${eh(aurl)}" target="_blank" rel="noopener">↗ article</a>`:''}${r.url&&r.url!==aurl?`<a class="durl" href="${eh(r.url)}" target="_blank" rel="noopener" style="color:var(--txt3);">↗ post</a>`:''}</div><div class="dtags">${r.tagList.slice(0,6).map(t=>`<span class="dtag">${eh(t)}</span>`).join('')}</div></div>`;
+  return `<div class="dsig"><p class="dtxt">${eh(txt)}</p><div class="dmeta"><span class="dtheme" style="background:${td.bg};color:${td.fg};">${r.theme}</span><span class="ddate">${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>${aurl?`<a href="${eh(aurl)}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:11px;color:var(--blue);text-decoration:none;background:var(--sur2);border:1px solid var(--bor);padding:3px 10px;border-radius:3px;display:inline-flex;align-items:center;gap:4px;">↗ read article</a>`:''}${r.url&&r.url!==aurl?`<a href="${eh(r.url)}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:11px;color:var(--txt2);text-decoration:none;background:var(--sur2);border:1px solid var(--bor);padding:3px 10px;border-radius:3px;display:inline-flex;align-items:center;gap:4px;">↗ Bluesky post</a>`:''}</div><div class="dtags">${r.tagList.slice(0,6).map(t=>`<span class="dtag">${eh(t)}</span>`).join('')}</div></div>`;
 }
 function openD(title,subtitle,sigRows,tagFilter){
   const rows=tagFilter?ROWS.filter(r=>r.tagList.some(t=>t.toLowerCase()===tagFilter.toLowerCase())):(sigRows||ROWS);
