@@ -576,11 +576,29 @@ function render(){
   if(TC)TC.destroy();
   TC=new Chart(document.getElementById('tc'),{type:'bar',data:{labels:mons,datasets:tds},options:{...bo,scales:{x:{...bo.scales.x,stacked:true},y:{...bo.scales.y,stacked:true}},onClick:(e,els)=>{if(!els.length)return;const di=els[0].datasetIndex,mi=els[0].index,tn=tds[di].label,mo=mons[mi];const fr=rows.filter(r=>r.theme===tn&&mf(r.date)===mo);if(fr.length)openD(tn+' — '+mo,fr.length+' signals',fr);}}});
 
-  const tf={};rows.forEach(r=>r.tagList.forEach(t=>{tf[t]=(tf[t]||0)+1;}));
-  const tops=Object.entries(tf).filter(([t])=>!['please','provide','article','content','missing','empty','cell'].some(x=>t.toLowerCase().includes(x))).sort((a,b)=>b[1]-a[1]).slice(0,25);
-  const mxF=tops[0]?.[1]||1;
+  const tfRaw={};
+  rows.forEach(r=>(r.tagList||[]).forEach(t=>{
+    if(!t||typeof t!=='string'||t.length<3)return;
+    const key=t.toLowerCase().trim();
+    if(!tfRaw[key])tfRaw[key]={display:t.trim(),count:0};
+    tfRaw[key].count++;
+    if(t[0]&&t[0]===t[0].toUpperCase())tfRaw[key].display=t.trim();
+  }));
+  const badWords=['please','provide','article','content','missing','empty','cell','bluesky','socialmedia','post','link','http','tags','keyword'];
+  const tops=Object.values(tfRaw)
+    .filter(o=>o&&o.display&&typeof o.display==='string'&&o.display.length>2&&o.display.length<40)
+    .filter(o=>!badWords.some(x=>o.display.toLowerCase().includes(x)))
+    .sort((a,b)=>b.count-a.count)
+    .slice(0,25);
+  const mxF=tops[0]?.count||1;
   const tcs=['#FAE8E4:#8B2E1A','#EDE9F7:#3A3070','#E5F1EA:#1A5C38','#E6EEF7:#1B3E6B','#FBF0DE:#7A5009','#E4F3F3:#115555','#FBEAF0:#72243E','#F1EFE8:#444441'];
-  document.getElementById('tcloud').innerHTML=tops.map(([tag,cnt],i)=>{const[bg,fg]=tcs[i%tcs.length].split(':'),sz=10+Math.round(cnt/mxF*5);return `<span class="tag" style="background:${bg};color:${fg};font-size:${sz}px;" onclick="openD('Tag: ${eh(tag).replace(/'/g,"\\'")}','${cnt} signals',null,'${eh(tag).replace(/'/g,"\\'")}')">${eh(tag)}</span>`;}).join('');
+  document.getElementById('tcloud').innerHTML=tops.map((o,i)=>{
+    if(!o||!o.display)return '';
+    const[bg,fg]=tcs[i%tcs.length].split(':'),sz=10+Math.round(o.count/mxF*5);
+    const safe=o.display.replace(/'/g,"\'");
+    const key=o.display.toLowerCase();
+    return `<span class="tag" style="background:${bg};color:${fg};font-size:${sz}px;cursor:pointer;" onclick="openD('${safe}','${o.count} signal${o.count!==1?'s':''}',ROWS.filter(r=>(r.tagList||[]).some(t=>t.toLowerCase()==='${key}')))">${eh(o.display)}</span>`;
+  }).join('');
 
   const rrows=rows.filter(r=>r.date>=tw).slice(0,8);window._rr=rrows;
   document.getElementById('rsigs').innerHTML=rrows.map((r,i)=>{const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();return `<div class="sitem" style="border-color:${td.c};" onclick="openSingle(${i})"><div class="stxt">${eh(txt.slice(0,300))}${txt.length>300?'…':''}</div><div class="smeta"><span>${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span><span style="background:${td.bg};color:${td.fg};padding:1px 7px;border-radius:2px;font-size:9px;">${r.theme}</span>${r.url?`<a href="${eh(r.url)}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue);font-family:var(--mono);font-size:10px;text-decoration:none;background:var(--sur);border:1px solid var(--bor);padding:2px 8px;border-radius:3px;display:inline-flex;align-items:center;gap:3px;">↗ open</a>`:''}</div></div>`;}).join('');
