@@ -434,21 +434,26 @@ const mf=d=>d.toLocaleDateString('en-US',{month:'short',year:'2-digit'});
 
 // Parse CSV properly handling quoted fields
 function parseCSV(text){
+  // Proper CSV parser that handles quoted fields with embedded newlines
   const rows=[];
-  const lines=text.split('\n');
-  for(const line of lines){
-    if(!line.trim())continue;
-    const row=[];let cur='',inQ=false;
-    for(let i=0;i<line.length;i++){
-      const ch=line[i];
-      if(ch==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else{inQ=!inQ;}}
-      else if(ch===','&&!inQ){row.push(cur);cur='';}
-      else cur+=ch;
+  let row=[], cur='', inQ=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(ch==='"'){
+      if(inQ&&text[i+1]==='"'){cur+='"';i++;} // escaped quote
+      else{inQ=!inQ;}
+    } else if(ch===','&&!inQ){
+      row.push(cur);cur='';
+    } else if((ch==='\n'||ch==='\r')&&!inQ){
+      if(ch==='\r'&&text[i+1]==='\n')i++; // skip \r\n
+      if(row.length>0||cur.length>0){row.push(cur);rows.push(row);}
+      row=[];cur='';
+    } else {
+      cur+=ch;
     }
-    row.push(cur);
-    rows.push(row);
   }
-  return rows;
+  if(row.length>0||cur.length>0){row.push(cur);rows.push(row);}
+  return rows.filter(r=>r.some(c=>c.trim().length>0));
 }
 
 async function fetchCSV(name){
@@ -589,7 +594,7 @@ function render(){
     .filter(o=>o&&o.display&&typeof o.display==='string'&&o.display.length>2&&o.display.length<40)
     .filter(o=>!badWords.some(x=>o.display.toLowerCase().includes(x)))
     .sort((a,b)=>b.count-a.count)
-    .slice(0,25);
+    .slice(0,40);
   const mxF=tops[0]?.count||1;
   const tcs=['#FAE8E4:#8B2E1A','#EDE9F7:#3A3070','#E5F1EA:#1A5C38','#E6EEF7:#1B3E6B','#FBF0DE:#7A5009','#E4F3F3:#115555','#FBEAF0:#72243E','#F1EFE8:#444441'];
   document.getElementById('tcloud').innerHTML=tops.map((o,i)=>{
@@ -601,7 +606,17 @@ function render(){
   }).join('');
 
   const rrows=rows.filter(r=>r.date>=tw).slice(0,8);window._rr=rrows;
-  document.getElementById('rsigs').innerHTML=rrows.map((r,i)=>{const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();return `<div class="sitem" style="border-color:${td.c};" onclick="openSingle(${i})"><div class="stxt">${eh(txt.slice(0,300))}${txt.length>300?'…':''}</div><div class="smeta"><span>${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span><span style="background:${td.bg};color:${td.fg};padding:1px 7px;border-radius:2px;font-size:9px;">${r.theme}</span>${r.url?`<a href="${eh(r.url)}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue);font-family:var(--mono);font-size:10px;text-decoration:none;background:var(--sur);border:1px solid var(--bor);padding:2px 8px;border-radius:3px;display:inline-flex;align-items:center;gap:3px;">↗ open</a>`:''}</div></div>`;}).join('');
+  document.getElementById('rsigs').innerHTML=rrows.map((r,i)=>{const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
+    const um=r.content.match(/https?:\/\/\S+/),aurl=um?um[0]:null;
+    const linkUrl=aurl||r.url||null;
+    return `<div class="sitem" style="border-color:${td.c};" onclick="openSingle(${i})">
+      <div class="stxt">${eh(txt.slice(0,300))}${txt.length>300?'…':''}</div>
+      <div class="smeta">
+        <span>${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+        <span style="background:${td.bg};color:${td.fg};padding:1px 7px;border-radius:2px;font-size:9px;">${r.theme}</span>
+        ${linkUrl?`<a href="${eh(linkUrl)}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue);font-family:var(--mono);font-size:10px;text-decoration:none;background:var(--sur);border:1px solid var(--bor);padding:2px 8px;border-radius:3px;">↗ open</a>`:''}
+      </div>
+    </div>`;}).join('');
 
   const cn=TH.map(t=>t.n),ci=Object.fromEntries(cn.map((c,i)=>[c,i])),n=cn.length;
   const mat=Array.from({length:n},()=>new Array(n).fill(0));
