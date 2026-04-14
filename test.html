@@ -580,7 +580,12 @@ function render(){
   const tops=Object.entries(tf).filter(([t])=>!['please','provide','article','content','missing','empty','cell'].some(x=>t.toLowerCase().includes(x))).sort((a,b)=>b[1]-a[1]).slice(0,25);
   const mxF=tops[0]?.[1]||1;
   const tcs=['#FAE8E4:#8B2E1A','#EDE9F7:#3A3070','#E5F1EA:#1A5C38','#E6EEF7:#1B3E6B','#FBF0DE:#7A5009','#E4F3F3:#115555','#FBEAF0:#72243E','#F1EFE8:#444441'];
-  document.getElementById('tcloud').innerHTML=tops.map(([tag,cnt],i)=>{const[bg,fg]=tcs[i%tcs.length].split(':'),sz=10+Math.round(cnt/mxF*5);return `<span class="tag" style="background:${bg};color:${fg};font-size:${sz}px;" onclick="openD('Tag: ${eh(tag).replace(/'/g,"\\'")}','${cnt} signals',null,'${eh(tag).replace(/'/g,"\\'")}')">${eh(tag)}</span>`;}).join('');
+  document.getElementById('tcloud').innerHTML=tops.map(({display,count},i)=>{
+    const[bg,fg]=tcs[i%tcs.length].split(':'),sz=10+Math.round(count/mxF*5);
+    const safe=display.replace(/'/g,"\'");
+    const key=display.toLowerCase().replace(/'/g,"\'");
+    return `<span class="tag" style="background:${bg};color:${fg};font-size:${sz}px;cursor:pointer;" onclick="openD('${safe}','${count} signal${count!==1?'s':''}',ROWS.filter(r=>r.tagList.some(t=>t.toLowerCase()==='${key}')))">${eh(display)}</span>`;
+  }).join('');
 
   const rrows=rows.filter(r=>r.date>=tw).slice(0,8);window._rr=rrows;
   document.getElementById('rsigs').innerHTML=rrows.map((r,i)=>{const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();return `<div class="sitem" style="border-color:${td.c};" onclick="openSingle(${i})"><div class="stxt">${eh(txt.slice(0,300))}${txt.length>300?'…':''}</div><div class="smeta"><span>${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span><span style="background:${td.bg};color:${td.fg};padding:1px 7px;border-radius:2px;font-size:9px;">${r.theme}</span>${r.url?`<a href="${eh(r.url)}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue);font-family:var(--mono);font-size:10px;text-decoration:none;background:var(--sur);border:1px solid var(--bor);padding:2px 8px;border-radius:3px;display:inline-flex;align-items:center;gap:3px;">↗ open</a>`:''}</div></div>`;}).join('');
