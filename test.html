@@ -577,7 +577,7 @@ function render(){
   TC=new Chart(document.getElementById('tc'),{type:'bar',data:{labels:mons,datasets:tds},options:{...bo,scales:{x:{...bo.scales.x,stacked:true},y:{...bo.scales.y,stacked:true}},onClick:(e,els)=>{if(!els.length)return;const di=els[0].datasetIndex,mi=els[0].index,tn=tds[di].label,mo=mons[mi];const fr=rows.filter(r=>r.theme===tn&&mf(r.date)===mo);if(fr.length)openD(tn+' — '+mo,fr.length+' signals',fr);}}});
 
   const tf={};rows.forEach(r=>r.tagList.forEach(t=>{tf[t]=(tf[t]||0)+1;}));
-  const tops=Object.entries(tf).filter(([t])=>!['please','provide','article','content','missing','empty','cell'].some(x=>t.toLowerCase().includes(x))).sort((a,b)=>b[1]-a[1]).slice(0,22);
+  const tops=Object.entries(tf).filter(([t])=>!['please','provide','article','content','missing','empty','cell'].some(x=>t.toLowerCase().includes(x))).sort((a,b)=>b[1]-a[1]).slice(0,25);
   const mxF=tops[0]?.[1]||1;
   const tcs=['#FAE8E4:#8B2E1A','#EDE9F7:#3A3070','#E5F1EA:#1A5C38','#E6EEF7:#1B3E6B','#FBF0DE:#7A5009','#E4F3F3:#115555','#FBEAF0:#72243E','#F1EFE8:#444441'];
   document.getElementById('tcloud').innerHTML=tops.map(([tag,cnt],i)=>{const[bg,fg]=tcs[i%tcs.length].split(':'),sz=10+Math.round(cnt/mxF*5);return `<span class="tag" style="background:${bg};color:${fg};font-size:${sz}px;" onclick="openD('Tag: ${eh(tag).replace(/'/g,"\\'")}','${cnt} signals',null,'${eh(tag).replace(/'/g,"\\'")}')">${eh(tag)}</span>`;}).join('');
@@ -790,6 +790,15 @@ function drawThemeNet(){
       }
     });
   };
+  canvas.onmousemove=(e)=>{
+    const rect=canvas.getBoundingClientRect();
+    const mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    const scaleX=canvas.width/rect.width,scaleY=canvas.height/rect.height;
+    const cx=mx*scaleX,cy=my*scaleY;
+    let hit=false;
+    nodes.forEach(nd=>{const dx=cx-nd.x,dy=cy-nd.y,r2=14+nd.count/maxN*22;if(dx*dx+dy*dy<r2*r2)hit=true;});
+    canvas.style.cursor=hit?'pointer':'default';
+  };
 }
 
 function drawSignalNet(){
@@ -879,13 +888,26 @@ function drawSignalNet(){
       }
     });
   };
+  canvas.onmousemove=(e)=>{
+    const rect=canvas.getBoundingClientRect();
+    const mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    const scaleX=canvas.width/rect.width,scaleY=canvas.height/rect.height;
+    const cx=mx*scaleX,cy=my*scaleY;
+    let hit=false;
+    nodes.forEach(nd=>{const dx=cx-nd.x,dy=cy-nd.y;if(dx*dx+dy*dy<100)hit=true;});
+    canvas.style.cursor=hit?'pointer':'default';
+  };
 }
 
 function openSingleRaw(r){
+  const um=r.content.match(/https?:\/\/\S+/),aurl=um?um[0]:null;
+  const linkUrl=aurl||r.url||null;
   document.getElementById('dtitle').textContent='Signal detail';
   document.getElementById('dsub').textContent=r.date.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   document.getElementById('dfilt').style.display='none';
-  document.getElementById('dcnt').textContent='';
+  document.getElementById('dcnt').innerHTML=linkUrl
+    ?`<a href="${eh(linkUrl)}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:11px;color:var(--blue);text-decoration:none;background:var(--sur2);border:1px solid var(--bor);padding:4px 12px;border-radius:3px;display:inline-flex;align-items:center;gap:4px;margin-top:4px;">↗ open article</a>`
+    :'';
   document.getElementById('dbody').innerHTML=cHtml(r);
   document.getElementById('ov').classList.add('open');
   document.getElementById('drw').classList.add('open');
