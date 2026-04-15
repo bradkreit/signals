@@ -121,49 +121,71 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
       <span class="live-badge"><span class="live-dot"></span>Live from Google Sheets</span>
       <button class="rbtn" onclick="loadAll()">↻ Refresh</button>
       <span style="font-family:var(--mono);font-size:10px;color:var(--txt3);" id="lup"></span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="text" id="search" placeholder="Search signals…"
+          oninput="doSearch(this.value)"
+          onkeydown="if(event.key==='Enter')doSearch(this.value);if(event.key==='Escape')clearSearch();"
+          style="font-family:var(--mono);font-size:12px;padding:5px 12px;border:1px solid var(--bor);border-radius:3px;background:var(--sur);color:var(--txt);outline:none;width:220px;">
+        <button onclick="clearSearch()" id="search-clear" style="display:none;font-family:var(--mono);font-size:11px;color:var(--txt2);border:1px solid var(--bor);background:var(--sur);padding:5px 10px;border-radius:3px;cursor:pointer;">✕</button>
+      </div>
     </div>
   </header>
   <div id="errmsg"></div>
+</div>
   <div id="loading"><div class="spin"></div><p id="lmsg">Fetching signals…</p></div>
   <div id="dash" style="display:none;">
     <div class="tabs">
       <div class="tab active" onclick="sw('ov')">Overview</div>
       <div class="tab" onclick="sw('hm')">Co-occurrence</div>
       <div class="tab" onclick="sw('wk')">Weekly summaries</div>
+      <div class="tab" onclick="sw('net')">Network</div>
     </div>
     <div class="tp active" id="tp-ov">
-      <div class="krow">
-        <div class="kpi" id="k-all"><div class="kpi-lbl">Total signals</div><div class="kpi-val" id="kv-tot">—</div><div class="kpi-sub" id="kv-rng">—</div></div>
-        <div class="kpi" id="k-top"><div class="kpi-lbl">Top theme</div><div class="kpi-val" id="kv-thm" style="font-size:17px;padding-top:5px;">—</div><div class="kpi-sub" id="kv-pct">—</div></div>
-        <div class="kpi" id="k-pk"><div class="kpi-lbl">Peak month</div><div class="kpi-val" id="kv-pk">—</div><div class="kpi-sub" id="kv-pks">—</div></div>
-        <div class="kpi" id="k-rc"><div class="kpi-lbl">Recent (14 days)</div><div class="kpi-val" id="kv-rc">—</div><div class="kpi-sub">Latest signals</div></div>
-      </div>
-      <div class="r2">
+      <div id="search-results" style="display:none;margin-bottom:16px;">
         <div class="card">
-          <div class="ctitle">Signal volume by week <span class="chint">click bar to drill in</span></div>
-          <div class="legrow"><span class="leg"><span class="ldot" style="background:#2D5FA0;"></span>Weekly count</span><span class="leg"><span class="ldot" style="background:#2A7A52;width:16px;border-radius:0;height:2px;"></span>Trend</span></div>
-          <div class="cwrap" style="height:200px;"><canvas id="vc" role="img" aria-label="Weekly signal volume"></canvas></div>
+          <div class="ctitle" id="search-title" style="margin-bottom:12px;">Search results <span class="chint" id="search-count"></span>
+            <button onclick="clearSearch()" style="font-family:var(--mono);font-size:10px;color:var(--txt2);border:1px solid var(--bor);background:var(--sur);padding:3px 10px;border-radius:3px;cursor:pointer;float:right;">✕ clear</button>
+          </div>
+          <div class="slist" id="search-list"></div>
         </div>
+      </div>
+      <div class="r2" style="margin-bottom:16px;">
         <div class="card">
           <div class="ctitle">Theme distribution <span class="chint">click to explore</span></div>
           <div class="tbars" id="tbars"></div>
-        </div>
-      </div>
-      <div class="r2b">
-        <div class="card">
-          <div class="ctitle">Theme trends (monthly) <span class="chint">click segment</span></div>
-          <div class="legrow" id="tleg"></div>
-          <div class="cwrap" style="height:210px;"><canvas id="tc" role="img" aria-label="Monthly theme trends"></canvas></div>
         </div>
         <div class="card">
           <div class="ctitle">Top keywords & tags <span class="chint">click to filter</span></div>
           <div class="tcloud" id="tcloud"></div>
         </div>
       </div>
-      <div class="card">
+      <div class="card" style="margin-bottom:16px;">
         <div class="ctitle">Recent signals — last 14 days <span class="chint">click for detail</span></div>
         <div class="slist" id="rsigs"></div>
       </div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="ctitle">Theme trends (monthly) <span class="chint">click segment</span></div>
+        <div class="legrow" id="tleg"></div>
+        <div class="cwrap" style="height:200px;"><canvas id="tc" role="img" aria-label="Monthly theme trends"></canvas></div>
+      </div>
+      <details style="margin-bottom:16px;">
+        <summary style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3);cursor:pointer;padding:14px 20px;background:var(--sur);border:1px solid var(--bor);border-radius:6px;list-style:none;display:flex;justify-content:space-between;align-items:center;">
+          Activity metrics <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;">▸ show</span>
+        </summary>
+        <div style="background:var(--sur);border:1px solid var(--bor);border-top:none;border-radius:0 0 6px 6px;padding:16px 20px;">
+          <div class="krow" style="margin-bottom:16px;">
+            <div class="kpi" id="k-all"><div class="kpi-lbl">Total signals</div><div class="kpi-val" id="kv-tot">—</div><div class="kpi-sub" id="kv-rng">—</div></div>
+            <div class="kpi" id="k-top"><div class="kpi-lbl">Top theme</div><div class="kpi-val" id="kv-thm" style="font-size:17px;padding-top:5px;">—</div><div class="kpi-sub" id="kv-pct">—</div></div>
+            <div class="kpi" id="k-pk"><div class="kpi-lbl">Peak month</div><div class="kpi-val" id="kv-pk">—</div><div class="kpi-sub" id="kv-pks">—</div></div>
+            <div class="kpi" id="k-rc"><div class="kpi-lbl">Recent (14 days)</div><div class="kpi-val" id="kv-rc">—</div><div class="kpi-sub">Latest signals</div></div>
+          </div>
+          <div class="card" style="border:none;padding:0;">
+            <div class="ctitle" style="margin-bottom:10px;">Signal volume by week <span class="chint">click bar to drill in</span></div>
+            <div class="legrow"><span class="leg"><span class="ldot" style="background:#2D5FA0;"></span>Weekly count</span><span class="leg"><span class="ldot" style="background:#2A7A52;width:16px;border-radius:0;height:2px;"></span>Trend</span></div>
+            <div class="cwrap" style="height:180px;"><canvas id="vc" role="img" aria-label="Weekly signal volume"></canvas></div>
+          </div>
+        </div>
+      </details>
     </div>
     <div class="tp" id="tp-hm">
       <div class="card" style="margin-bottom:16px;">
@@ -180,6 +202,17 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
       <div class="card">
         <div class="ctitle">Weekly executive summaries <span class="chint">click row</span></div>
         <table class="wtbl"><thead><tr><th style="width:120px;">Week</th><th style="width:190px;">Themes</th><th>Key signals</th></tr></thead><tbody id="wb"></tbody></table>
+      </div>
+    </div>
+    <div class="tp" id="tp-net">
+      <div class="card" style="margin-bottom:12px;">
+        <div class="ctitle">Theme connection network <span class="chint">nodes = themes, edges = co-occurrences</span></div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+          <button class="rbtn" onclick="renderNet('theme')" id="net-btn-theme" style="background:var(--blue);color:#fff;">By theme</button>
+          <button class="rbtn" onclick="renderNet('signal')" id="net-btn-signal">By signal</button>
+          <span style="font-size:11px;color:var(--txt3);align-self:center;font-family:var(--mono);">Click nodes to explore signals</span>
+        </div>
+        <canvas id="netCanvas" style="width:100%;background:var(--bg);border-radius:4px;" height="520"></canvas>
       </div>
     </div>
   </div>
@@ -200,50 +233,114 @@ const TH=[
     'hallucination','police report','akron','malfunction','fail','safety','bias','misuse',
     'illusion of correctness','rogue','out of control','reliability','quietly fail',
     'ai reliability','ai failure','ai error','ai risk','ai harm','robot safety',
-    'ai robotics','ai policing','public safety','non-emergency','ai coding','ai-generated',
-    'ai lawsuits','ai agents','agentic','autonomous','self-driving','waymo',
-    'cognitive surrender','cognitive offloading','ai overreliance','ai dependency',
-    'ai hallucin','fake disease','recommendation poisoning','ai slop','ai content'
+    'ai robotics','ai policing','non-emergency','ai coding','ai-generated',
+    'ai lawsuits','autonomous','self-driving','waymo','cognitive surrender',
+    'cognitive offloading','ai overreliance','ai dependency','ai hallucin',
+    'fake disease','recommendation poisoning','ai slop','ai content','ai mistake',
+    'ai wrong','ai bad','ai dangerous','alignment','misaligned','ai safety',
+    'existential','superintelligence','agi risk','ai weapons','lethal autonomous',
+    'deepfake','synthetic media','ai fraud','ai scam','ai impersonat',
+    'ai accountability','ai transparency','explainability','black box',
+    'ai bias','algorithmic bias','facial recognition','predictive policing',
+    'ai surveillance','mass surveillance','ai discrimination','ai inequality'
   ]},
   {n:'AI capabilities',c:'#2D5FA0',bg:'#E6EEF7',fg:'#1B3E6B',k:[
     'ai assistant','copilot','chatgpt','anthropic','openai','llm','generative',
     'machine learning','automation','robot','agent','vending machine','agentic',
     'artificial intelligence','ai tool','ai model','ai system','ai platform',
-    'gpt','claude','gemini','grok','llm','large language','foundation model',
+    'gpt','claude','gemini','grok','large language','foundation model',
     'ai capabilities','ai development','ai research','ai regulation','ai impact',
     'ai technology','ai integration','ai adoption','digital twin','ai agent',
-    'north korean','moltbook','openclaw','ai startup','ai company','ai lab'
+    'ai startup','ai company','ai lab','ai investment','ai chip','semiconductor',
+    'nvidia','google deepmind','meta ai','microsoft ai','amazon ai','apple ai',
+    'ai product','ai feature','ai assistant','ai writing','ai image','ai video',
+    'ai music','ai code','github copilot','cursor','ai coding','vibe coding',
+    'ai search','perplexity','ai answer','ai summary','ai translation',
+    'ai customer service','ai healthcare','ai diagnosis','ai drug','ai science',
+    'ai climate','ai energy','protein folding','alphafold','robotics',
+    'humanoid robot','boston dynamics','figure','1x','optimus',
+    'sam altman','altman','dario amodei','yann lecun','geoffrey hinton',
+    'ai winter','ai hype','ai bubble','ai race','ai arms race','ai competition'
   ]},
   {n:'Mental health',c:'#5B4FA0',bg:'#EDE9F7',fg:'#3A3070',k:[
     'mental health','emotional energy','wellbeing','anxiety','burnout','emotional',
-    'trumpism','exhaustion','loneliness','loneliness','depression','stress',
-    'emotional weight','physical weight','mental fatigue','ai brain fry',
-    'attention','focus','distraction','mindfulness','cognitive','brain',
+    'trumpism','exhaustion','loneliness','depression','stress','overwhelm',
+    'emotional weight','mental fatigue','brain fry','doom','doomscrolling',
+    'attention','focus','distraction','mindfulness','cognitive load','brain drain',
     'friendship','social connection','isolation','belonging','community',
-    'weight of','drag on','heaviness','lethargy'
+    'grief','loss','trauma','therapy','therapist','psychiatrist','psychologist',
+    'happiness','joy','meaning','purpose','fulfillment','satisfaction',
+    'work life balance','hustle culture','grind','overwork','always on',
+    'digital detox','screen time','phone addiction','social media addiction',
+    'body image','self esteem','confidence','imposter syndrome',
+    'political anxiety','election anxiety','news anxiety','information overload',
+    'compassion fatigue','vicarious trauma','collective trauma','mass trauma',
+    'sleep','insomnia','rest','recovery','resilience','coping','healing'
   ]},
   {n:'Digital friction & UX',c:'#2A7A52',bg:'#E5F1EA',fg:'#1A5C38',k:[
     'friction','ufi','digital services','ux','user experience','interface','clicktatorship',
     'universal friction','digital friction','design','product design','user interface',
-    'algorithmic','algorithm','feed','social media','engagement','attention economy',
-    'ads','advertising','ad','notification','spam','inbox','email','dark pattern',
-    'predatory design','addictive','addiction','infinite scroll','recommendation',
-    'in-car','smart tv','fridge','refrigerator','iot','connected device',
-    'velocity','acceleration','rushed','manic','extraction','lolviathan','algocracy'
+    'algorithm','feed','social media','engagement','attention economy',
+    'advertising','ads','ad targeting','surveillance capitalism',
+    'notification','spam','inbox zero','email overload','dark pattern',
+    'predatory design','addictive design','addiction','infinite scroll',
+    'recommendation engine','filter bubble','echo chamber','rabbit hole',
+    'in-car','smart tv','smart home','iot','connected device','alexa','siri',
+    'voice assistant','chatbot','autocomplete','autocorrect','spell check',
+    'microsoft','google','apple','meta','amazon','big tech','platform',
+    'app store','google play','walled garden','lock in','switching cost',
+    'subscription','paywall','freemium','premium','upsell','dark ux',
+    'cookie banner','gdpr','privacy popup','consent','accept all',
+    'autoplay','binge','streaming','netflix','spotify','youtube',
+    'tiktok','instagram','twitter','x','bluesky','mastodon','threads',
+    'social network','social platform','creator economy','influencer',
+    'content creator','algorithm change','reach','engagement rate',
+    'concise','editing software','writing tool','grammarly','notion',
+    'productivity','todo','task management','calendar','scheduling',
+    'search','google search','seo','search result','zero click',
+    'website','app','mobile','desktop','browser','chrome','safari',
+    'accessibility','disability','inclusive design','universal design'
   ]},
   {n:'Education',c:'#B8760F',bg:'#FBF0DE',fg:'#7A5009',k:[
     'education','grade inflation','standardized tests','school','reading','literature',
     'university','college','academic','degree','credential','student','teacher',
     'classroom','curriculum','novel','book','reading habits','higher education',
-    'charter school','ai school','homework','learning','knowledge','skill',
-    'job market','workforce','entry level','career','hiring','talent'
+    'charter school','homework','learning','knowledge','skill','training',
+    'community college','trade school','vocational','apprenticeship',
+    'student debt','student loan','tuition','college cost','college worth it',
+    'dropout','completion rate','graduation','diploma','certificate',
+    'stem','liberal arts','humanities','social science','philosophy',
+    'critical thinking','media literacy','information literacy','ai literacy',
+    'school district','public school','private school','homeschool',
+    'remote learning','online learning','edtech','coursera','khan academy',
+    'reading level','literacy','numeracy','math','science','history',
+    'tenure','professor','adjunct','faculty','administration','dean',
+    'research','publication','peer review','academic freedom','censorship',
+    'book ban','library','banned book','intellectual freedom',
+    'childhood','child development','parenting','youth','teen','adolescent',
+    'play','recess','extracurricular','sports','arts','music','theater',
+    'career','college prep','sat','act','ap','ib','test prep','tutoring'
   ]},
   {n:'Misinformation',c:'#D4537E',bg:'#FBEAF0',fg:'#72243E',k:[
     'misinformation','deepfake','fake','disinformation','propaganda','health misinformation',
     'fake news','false','misleading','conspiracy','bot','bots','ai bot','bot swarm',
-    'manipulat','influence','synthetic','fabricat','deepfake','ai-generated doctor',
-    'ai influencer','fake influencer','polluted research','manipulated research',
-    'ai seo','seo industry','search manipulation','ai overviews','google ai'
+    'manipulat','influence operation','synthetic media','fabricat',
+    'ai-generated doctor','ai influencer','fake influencer','polluted research',
+    'manipulated research','ai seo','search manipulation','ai overviews',
+    'google ai overview','hallucination','made up','invented','fabricated',
+    'fact check','fact checking','snopes','politifact','debunk',
+    'rumor','hoax','urban legend','viral','virality','shareability',
+    'trust','credibility','source','citation','evidence','proof',
+    'media literacy','news literacy','critical thinking','skepticism',
+    'journalism','reporter','news','newspaper','magazine','broadcast',
+    'local news','news desert','media consolidation','media ownership',
+    'social media spread','viral misinformation','covid','vaccine','5g',
+    'election fraud','election denial','big lie','stop the steal',
+    'crisis actor','false flag','qanon','conspiracy theory','anti-vax',
+    'climate denial','science denial','expert','authority','institution',
+    'deepfake video','voice clone','synthetic voice','synthetic image',
+    'photoshop','image manipulation','video manipulation','audio manipulation',
+    'astroturfing','paid troll','troll farm','russian disinfo','state media'
   ]},
   {n:'Economics & labor',c:'#1D8A8A',bg:'#E4F3F3',fg:'#115555',k:[
     'labor','job market','economy','market','unemployment','wage','economic',
@@ -251,11 +348,26 @@ const TH=[
     'kalshi','betting','bet','wager','prediction','forecast','odds',
     'job','work','worker','workforce','employment','hire','layoff','productivity',
     'tariff','trade','inflation','recession','gdp','growth','wealth','income',
-    'inequality','capital vs labor','corporate','shareholder','profit','revenue',
+    'inequality','corporate','shareholder','profit','revenue','earnings',
     'crypto','bitcoin','blockchain','token','nft','stablecoin','defi',
-    'stock','market','invest','fund','vc','venture capital','startup',
-    'storytelling','corporate storytelling','job trends','wildlife conservation',
-    'foresight','strategic foresight','scenario','planning','futures'
+    'stock','market','invest','fund','vc','venture capital','startup','unicorn',
+    'storytelling','job trends','wildlife conservation',
+    'foresight','strategic foresight','scenario planning','futures thinking',
+    'automation','robot','job displacement','future of work',
+    'gig economy','freelance','contract','remote work','hybrid work','office',
+    'strike','union','collective bargaining','labor rights','worker rights',
+    'minimum wage','living wage','universal basic income','ubi',
+    'cost of living','housing','rent','mortgage','affordability',
+    'supply chain','globalization','reshoring','manufacturing','factory',
+    'energy','oil','gas','renewable','solar','wind','green economy',
+    'climate economy','carbon','carbon tax','emissions trading',
+    'bank','banking','fintech','payment','credit','debt','loan',
+    'fed','federal reserve','interest rate','monetary policy','fiscal policy',
+    'gdp','growth','recession','depression','stagflation','deflation',
+    'rich','poor','wealth gap','class','mobility','opportunity',
+    'immigration','migrant worker','visa','h1b','outsourcing','offshoring',
+    'severance','benefits','healthcare','401k','pension','retirement',
+    'founder','ceo','executive','board','compensation','stock option'
   ]},
   {n:'Politics & power',c:'#C05030',bg:'#FAF0ED',fg:'#7A3020',k:[
     'politics','trump','government','policy','election','political','pentagon',
@@ -264,15 +376,41 @@ const TH=[
     'doge','ice','deportation','musk','elon','rfk','vance','bannon',
     'epstein','power','authoritarian','democracy','fascism','meme','viral',
     'foreign policy','national security','geopolit','ukraine','russia','china',
-    'war','military','defense','nato','sanctions','diplomat'
+    'war','military','defense','nato','sanctions','diplomat','ambassador',
+    'supreme court','judiciary','court','judge','ruling','decision','law',
+    'legislation','bill','vote','voting','ballot','election integrity',
+    'lobbying','campaign finance','pac','dark money','corruption',
+    'protest','civil disobedience','activism','organiz','movement','rally',
+    'free speech','censorship','first amendment','platform moderation',
+    'state','federal','local','municipal','governor','mayor','city council',
+    'tax','spending','budget','deficit','debt ceiling','continuing resolution',
+    'regulatory','regulation','deregulation','agency','fcc','ftc','sec','epa',
+    'kristol','bill kristol','neocon','conservative','liberal','progressive',
+    'populism','nationalism','globalism','sovereignty','identity politics',
+    'abortion','gun','gun control','immigration reform','border','wall',
+    'media','press','journalism','propaganda','state media','press freedom',
+    'surveillance state','civil liberties','aclu','eff','rights','freedom'
   ]},
   {n:'Privacy & security',c:'#888780',bg:'#F1EFE8',fg:'#444441',k:[
-    'privacy','security','surveillance','cybersecurity','hack','breach','epstein',
+    'privacy','security','surveillance','cybersecurity','hack','breach',
     'crypto','bitcoin','data','tracking','biometric','facial recognition',
     'smart glasses','metadata','location','personal data','data collection',
     'north korea','malware','phishing','ransomware','vulnerability','exploit',
     'insider trading','insider','leak','whistleblower','classified','secret',
-    'identity','verification','proof of human','worldcoin','retinal scan'
+    'identity','verification','proof of human','worldcoin','retinal scan',
+    'password','authentication','two factor','mfa','encryption','vpn',
+    'data breach','data leak','personal information','pii','gdpr','ccpa',
+    'ad tracking','cookie','fingerprinting','cross site','behavioral targeting',
+    'spyware','stalkerware','domestic surveillance','corporate surveillance',
+    'backdoor','zero day','patch','update','security flaw','cve',
+    'social engineering','pretexting','vishing','smishing',
+    'darkweb','dark web','tor','anonymous','pseudonymous',
+    'national id','digital id','real id','passport','drivers license',
+    'border','customs','immigration enforcement','ice','database',
+    'clearview','palantir','data broker','people search','dossier',
+    'location data','gps','cell tower','stingray','imsi catcher',
+    'smart device','alexa listening','google home','ring','doorbell camera',
+    'public camera','cctv','license plate reader','automated enforcement'
   ]},
 ];
 const TM=Object.fromEntries(TH.map(t=>[t.n,t]));
@@ -312,21 +450,26 @@ const mf=d=>d.toLocaleDateString('en-US',{month:'short',year:'2-digit'});
 
 // Parse CSV properly handling quoted fields
 function parseCSV(text){
+  // Proper CSV parser that handles quoted fields with embedded newlines
   const rows=[];
-  const lines=text.split('\n');
-  for(const line of lines){
-    if(!line.trim())continue;
-    const row=[];let cur='',inQ=false;
-    for(let i=0;i<line.length;i++){
-      const ch=line[i];
-      if(ch==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else{inQ=!inQ;}}
-      else if(ch===','&&!inQ){row.push(cur);cur='';}
-      else cur+=ch;
+  let row=[], cur='', inQ=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(ch==='"'){
+      if(inQ&&text[i+1]==='"'){cur+='"';i++;} // escaped quote
+      else{inQ=!inQ;}
+    } else if(ch===','&&!inQ){
+      row.push(cur);cur='';
+    } else if((ch==='\n'||ch==='\r')&&!inQ){
+      if(ch==='\r'&&text[i+1]==='\n')i++; // skip \r\n
+      if(row.length>0||cur.length>0){row.push(cur);rows.push(row);}
+      row=[];cur='';
+    } else {
+      cur+=ch;
     }
-    row.push(cur);
-    rows.push(row);
   }
-  return rows;
+  if(row.length>0||cur.length>0){row.push(cur);rows.push(row);}
+  return rows.filter(r=>r.some(c=>c.trim().length>0));
 }
 
 async function fetchCSV(name){
@@ -364,7 +507,7 @@ async function loadAll(){
       // Accept all rows with valid URL + date, classify from content+tags
       const tagList=ptag(tags);
       const theme=clf(tags,content);
-      ROWS.push({url,date,content,tags,tagList,theme});
+      ROWS.push({url,date,content,tags,tagList,theme,idx:ROWS.length});
     }
     ROWS.sort((a,b)=>b.date-a.date);
 
@@ -422,7 +565,7 @@ function render(){
   document.getElementById('kv-pk').textContent=peakM[0];
   document.getElementById('kv-pks').textContent=peakM[1]+' signals logged';
   document.getElementById('kv-rc').textContent=rcnt;
-  document.getElementById('hmeta').textContent='WEAK SIGNAL TRACKER · '+mf(minD).toUpperCase()+' – '+mf(maxD).toUpperCase()+' · '+total+' ENTRIES';
+  document.getElementById('hmeta').textContent=mf(minD).toUpperCase()+' – '+mf(maxD).toUpperCase();
   document.getElementById('k-all').onclick=()=>openD('All signals',total+' total',rows);
   document.getElementById('k-top').onclick=()=>openD(topTh[0],topTh[1]+' signals',rows.filter(r=>r.theme===topTh[0]));
   document.getElementById('k-pk').onclick=()=>openD('Signals — '+peakM[0],peakM[1]+' that month',rows.filter(r=>mf(r.date)===peakM[0]));
@@ -454,14 +597,42 @@ function render(){
   if(TC)TC.destroy();
   TC=new Chart(document.getElementById('tc'),{type:'bar',data:{labels:mons,datasets:tds},options:{...bo,scales:{x:{...bo.scales.x,stacked:true},y:{...bo.scales.y,stacked:true}},onClick:(e,els)=>{if(!els.length)return;const di=els[0].datasetIndex,mi=els[0].index,tn=tds[di].label,mo=mons[mi];const fr=rows.filter(r=>r.theme===tn&&mf(r.date)===mo);if(fr.length)openD(tn+' — '+mo,fr.length+' signals',fr);}}});
 
-  const tf={};rows.forEach(r=>r.tagList.forEach(t=>{tf[t]=(tf[t]||0)+1;}));
-  const tops=Object.entries(tf).filter(([t])=>!['please','provide','article','content','missing','empty','cell'].some(x=>t.toLowerCase().includes(x))).sort((a,b)=>b[1]-a[1]).slice(0,22);
-  const mxF=tops[0]?.[1]||1;
+  const tfRaw={};
+  rows.forEach(r=>(r.tagList||[]).forEach(t=>{
+    if(!t||typeof t!=='string'||t.length<3)return;
+    const key=t.toLowerCase().trim();
+    if(!tfRaw[key])tfRaw[key]={display:t.trim(),count:0};
+    tfRaw[key].count++;
+    if(t[0]&&t[0]===t[0].toUpperCase())tfRaw[key].display=t.trim();
+  }));
+  const badWords=['please','provide','article','content','missing','empty','cell','bluesky','socialmedia','post','link','http','tags','keyword'];
+  const tops=Object.values(tfRaw)
+    .filter(o=>o&&o.display&&typeof o.display==='string'&&o.display.length>2&&o.display.length<40)
+    .filter(o=>!badWords.some(x=>o.display.toLowerCase().includes(x)))
+    .sort((a,b)=>b.count-a.count)
+    .slice(0,40);
+  const mxF=tops[0]?.count||1;
   const tcs=['#FAE8E4:#8B2E1A','#EDE9F7:#3A3070','#E5F1EA:#1A5C38','#E6EEF7:#1B3E6B','#FBF0DE:#7A5009','#E4F3F3:#115555','#FBEAF0:#72243E','#F1EFE8:#444441'];
-  document.getElementById('tcloud').innerHTML=tops.map(([tag,cnt],i)=>{const[bg,fg]=tcs[i%tcs.length].split(':'),sz=10+Math.round(cnt/mxF*5);return `<span class="tag" style="background:${bg};color:${fg};font-size:${sz}px;" onclick="openD('Tag: ${eh(tag).replace(/'/g,"\\'")}','${cnt} signals',null,'${eh(tag).replace(/'/g,"\\'")}')">${eh(tag)}</span>`;}).join('');
+  document.getElementById('tcloud').innerHTML=tops.map((o,i)=>{
+    if(!o||!o.display)return '';
+    const[bg,fg]=tcs[i%tcs.length].split(':'),sz=10+Math.round(o.count/mxF*5);
+    const safe=o.display.replace(/'/g,"\'");
+    const key=o.display.toLowerCase();
+    return `<span class="tag" style="background:${bg};color:${fg};font-size:${sz}px;cursor:pointer;" onclick="openD('${safe}','${o.count} signal${o.count!==1?'s':''}',ROWS.filter(r=>(r.tagList||[]).some(t=>t.toLowerCase()==='${key}')))">${eh(o.display)}</span>`;
+  }).join('');
 
   const rrows=rows.filter(r=>r.date>=tw).slice(0,8);window._rr=rrows;
-  document.getElementById('rsigs').innerHTML=rrows.map((r,i)=>{const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();return `<div class="sitem" style="border-color:${td.c};" onclick="openSingle(${i})"><div class="stxt">${eh(txt.slice(0,160))}${txt.length>160?'…':''}</div><div class="smeta"><span>${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span><span style="background:${td.bg};color:${td.fg};padding:1px 7px;border-radius:2px;font-size:9px;">${r.theme}</span>${r.url?`<a href="${eh(r.url)}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue);font-family:var(--mono);font-size:10px;text-decoration:none;">↗ source</a>`:''}</div></div>`;}).join('');
+  document.getElementById('rsigs').innerHTML=rrows.map((r,i)=>{const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
+    const um=r.content.match(/https?:\/\/\S+/),aurl=um?um[0]:null;
+    const linkUrl=aurl||r.url||null;
+    return `<div class="sitem" style="border-color:${td.c};" onclick="openSingle(${i})">
+      <div class="stxt">${eh(txt.slice(0,300))}${txt.length>300?'…':''}</div>
+      <div class="smeta">
+        <span>${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+        <span style="background:${td.bg};color:${td.fg};padding:1px 7px;border-radius:2px;font-size:9px;">${r.theme}</span>
+        ${linkUrl?`<a href="${eh(linkUrl)}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue);font-family:var(--mono);font-size:10px;text-decoration:none;background:var(--sur);border:1px solid var(--bor);padding:2px 8px;border-radius:3px;">↗ open</a>`:''}
+      </div>
+    </div>`;}).join('');
 
   const cn=TH.map(t=>t.n),ci=Object.fromEntries(cn.map((c,i)=>[c,i])),n=cn.length;
   const mat=Array.from({length:n},()=>new Array(n).fill(0));
@@ -505,7 +676,7 @@ function cHtml(r){
   const td=TM[r.theme]||{bg:'#eee',fg:'#555'};
   const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
   const um=r.content.match(/https?:\/\/\S+/),aurl=um?um[0]:null;
-  return `<div class="dsig"><p class="dtxt">${eh(txt)}</p><div class="dmeta"><span class="dtheme" style="background:${td.bg};color:${td.fg};">${r.theme}</span><span class="ddate">${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>${aurl?`<a class="durl" href="${eh(aurl)}" target="_blank" rel="noopener">↗ article</a>`:''}${r.url&&r.url!==aurl?`<a class="durl" href="${eh(r.url)}" target="_blank" rel="noopener" style="color:var(--txt3);">↗ post</a>`:''}</div><div class="dtags">${r.tagList.slice(0,6).map(t=>`<span class="dtag">${eh(t)}</span>`).join('')}</div></div>`;
+  return `<div class="dsig"><p class="dtxt">${eh(txt)}</p><div class="dmeta"><span class="dtheme" style="background:${td.bg};color:${td.fg};">${r.theme}</span><span class="ddate">${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>${aurl?`<a href="${eh(aurl)}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:11px;color:var(--blue);text-decoration:none;background:var(--sur2);border:1px solid var(--bor);padding:3px 10px;border-radius:3px;display:inline-flex;align-items:center;gap:4px;">↗ read article</a>`:''}${r.url&&r.url!==aurl?`<a href="${eh(r.url)}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:11px;color:var(--txt2);text-decoration:none;background:var(--sur2);border:1px solid var(--bor);padding:3px 10px;border-radius:3px;display:inline-flex;align-items:center;gap:4px;">↗ Bluesky post</a>`:''}</div><div class="dtags">${r.tagList.slice(0,6).map(t=>`<span class="dtag">${eh(t)}</span>`).join('')}</div></div>`;
 }
 function openD(title,subtitle,sigRows,tagFilter){
   const rows=tagFilter?ROWS.filter(r=>r.tagList.some(t=>t.toLowerCase()===tagFilter.toLowerCase())):(sigRows||ROWS);
@@ -534,7 +705,335 @@ function openWeek(s,wkr){
 }
 function closeD(){document.getElementById('ov').classList.remove('open');document.getElementById('drw').classList.remove('open');}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeD();});
-function sw(name){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.tp').forEach(p=>p.classList.remove('active'));const idx=['ov','hm','wk'].indexOf(name);document.querySelectorAll('.tab')[idx].classList.add('active');document.getElementById('tp-'+name).classList.add('active');}
+function sw(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tp').forEach(p=>p.classList.remove('active'));
+  const idx=['ov','hm','wk','net'].indexOf(name);
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+  document.getElementById('tp-'+name).classList.add('active');
+  if(name==='net')renderNet('theme');
+}
+// ── Network graph ────────────────────────────────────────────
+let netMode='theme', netAnim=null;
+function renderNet(mode){
+  netMode=mode;
+  document.getElementById('net-btn-theme').style.cssText=mode==='theme'?'background:var(--blue);color:#fff;':'';
+  document.getElementById('net-btn-signal').style.cssText=mode==='signal'?'background:var(--blue);color:#fff;':'';
+  if(netAnim)cancelAnimationFrame(netAnim);
+  mode==='theme'?drawThemeNet():drawSignalNet();
+}
+
+function drawThemeNet(){
+  const canvas=document.getElementById('netCanvas');
+  const ctx=canvas.getContext('2d');
+  const W=canvas.offsetWidth;canvas.width=W;const H=canvas.height;
+
+  // Build theme nodes and co-occurrence edges
+  const tc={};ROWS.forEach(r=>{tc[r.theme]=(tc[r.theme]||0)+1;});
+  const themes=Object.keys(tc).filter(t=>t!=='Other');
+  const cn=TH.map(t=>t.n).filter(t=>themes.includes(t));
+  const ci=Object.fromEntries(cn.map((c,i)=>[c,i]));
+  const n=cn.length;
+  const mat=Array.from({length:n},()=>new Array(n).fill(0));
+  ROWS.forEach(r=>{
+    const t1=r.theme;if(!(t1 in ci))return;
+    const sec=new Set([t1]);
+    r.tagList.forEach(tag=>TH.forEach(td=>{if(td.k.some(k=>tag.toLowerCase().includes(k)))sec.add(td.n);}));
+    [...sec].forEach(t2=>{if(t2 in ci&&t2!==t1){mat[ci[t1]][ci[t2]]++;mat[ci[t2]][ci[t1]]++;}});
+  });
+
+  // Force-directed layout
+  const nodes=cn.map((name,i)=>{
+    const angle=(i/n)*Math.PI*2;
+    const r=Math.min(W,H)*0.32;
+    return {name,x:W/2+r*Math.cos(angle),y:H/2+r*Math.sin(angle),vx:0,vy:0,
+      count:tc[name]||0, color:(TM[name]||{c:'#888'}).c, bg:(TM[name]||{bg:'#eee'}).bg};
+  });
+
+  const edges=[];
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)if(mat[i][j]>0)edges.push({a:i,b:j,w:mat[i][j]});
+  const maxE=Math.max(1,...edges.map(e=>e.w));
+  const maxN=Math.max(1,...nodes.map(n2=>n2.count));
+
+  let tick=0;
+  function frame(){
+    // Simple force simulation
+    if(tick<200){
+      nodes.forEach((n1,i)=>{
+        // Repulsion
+        nodes.forEach((n2,j)=>{
+          if(i===j)return;
+          const dx=n1.x-n2.x,dy=n1.y-n2.y;
+          const d=Math.max(1,Math.sqrt(dx*dx+dy*dy));
+          const f=3000/(d*d);
+          n1.vx+=dx/d*f; n1.vy+=dy/d*f;
+        });
+        // Attraction to center
+        n1.vx+=(W/2-n1.x)*0.01; n1.vy+=(H/2-n1.y)*0.01;
+      });
+      // Edge attraction
+      edges.forEach(e=>{
+        const a=nodes[e.a],b=nodes[e.b];
+        const dx=b.x-a.x,dy=b.y-a.y;
+        const d=Math.max(1,Math.sqrt(dx*dx+dy*dy));
+        const strength=e.w/maxE*0.05;
+        a.vx+=dx*strength; a.vy+=dy*strength;
+        b.vx-=dx*strength; b.vy-=dy*strength;
+      });
+      nodes.forEach(n1=>{
+        n1.vx*=0.85; n1.vy*=0.85;
+        n1.x=Math.max(60,Math.min(W-60,n1.x+n1.vx));
+        n1.y=Math.max(40,Math.min(H-40,n1.y+n1.vy));
+      });
+      tick++;
+    }
+
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--bg')||'#F7F5F0';
+    ctx.fillRect(0,0,W,H);
+
+    // Draw edges
+    edges.forEach(e=>{
+      const a=nodes[e.a],b=nodes[e.b];
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+      ctx.strokeStyle=`rgba(0,0,0,${0.04+e.w/maxE*0.2})`;
+      ctx.lineWidth=0.5+e.w/maxE*3;
+      ctx.stroke();
+      // Edge label
+      if(e.w>1){
+        const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+        ctx.fillStyle='rgba(0,0,0,0.35)';ctx.font='10px monospace';ctx.textAlign='center';
+        ctx.fillText(e.w,mx,my);
+      }
+    });
+
+    // Draw nodes
+    nodes.forEach((nd,i)=>{
+      const r=14+nd.count/maxN*22;
+      ctx.beginPath();ctx.arc(nd.x,nd.y,r,0,Math.PI*2);
+      ctx.fillStyle=nd.bg;ctx.fill();
+      ctx.strokeStyle=nd.color;ctx.lineWidth=2;ctx.stroke();
+      // Label
+      const words=nd.name.split(' ');
+      ctx.fillStyle=nd.color;ctx.font='bold 10px system-ui';ctx.textAlign='center';
+      words.slice(0,2).forEach((w,wi)=>ctx.fillText(w,nd.x,nd.y+(wi-words.slice(0,2).length/2+0.5)*12));
+      // Count
+      ctx.fillStyle='rgba(0,0,0,0.4)';ctx.font='10px monospace';
+      ctx.fillText(nd.count,nd.x,nd.y+r+12);
+    });
+
+    if(tick<200)netAnim=requestAnimationFrame(frame);
+  }
+  frame();
+
+  // Click to explore
+  canvas.onclick=(e)=>{
+    const rect=canvas.getBoundingClientRect();
+    const mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    const scaleX=canvas.width/rect.width,scaleY=canvas.height/rect.height;
+    const cx=mx*scaleX,cy=my*scaleY;
+    nodes.forEach(nd=>{
+      const dx=cx-nd.x,dy=cy-nd.y,r=14+nd.count/maxN*22;
+      if(dx*dx+dy*dy<r*r){
+        openD(nd.name,nd.count+' signals',ROWS.filter(r2=>r2.theme===nd.name));
+      }
+    });
+  };
+  canvas.onmousemove=(e)=>{
+    const rect=canvas.getBoundingClientRect();
+    const mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    const scaleX=canvas.width/rect.width,scaleY=canvas.height/rect.height;
+    const cx=mx*scaleX,cy=my*scaleY;
+    let hit=false;
+    nodes.forEach(nd=>{const dx=cx-nd.x,dy=cy-nd.y,r2=14+nd.count/maxN*22;if(dx*dx+dy*dy<r2*r2)hit=true;});
+    canvas.style.cursor=hit?'pointer':'default';
+  };
+}
+
+function drawSignalNet(){
+  const canvas=document.getElementById('netCanvas');
+  const ctx=canvas.getContext('2d');
+  const W=canvas.offsetWidth;canvas.width=W;const H=canvas.height;
+
+  // Show recent 60 signals as nodes, connected by shared tags or same theme
+  const sample=ROWS.slice(0,60);
+  const nodes=sample.map((r,i)=>{
+    const angle=(i/sample.length)*Math.PI*2;
+    const rad=Math.min(W,H)*0.3;
+    const td=TM[r.theme]||{c:'#888',bg:'#eee'};
+    return {r,x:W/2+rad*Math.cos(angle),y:H/2+rad*Math.sin(angle),vx:(Math.random()-.5)*2,vy:(Math.random()-.5)*2,color:td.c,bg:td.bg};
+  });
+
+  const edges=[];
+  for(let i=0;i<nodes.length;i++){
+    for(let j=i+1;j<nodes.length;j++){
+      const a=nodes[i].r,b=nodes[j].r;
+      const sharedTags=a.tagList.filter(t=>b.tagList.some(bt=>bt.toLowerCase()===t.toLowerCase()));
+      const sameTheme=a.theme===b.theme&&a.theme!=='Other';
+      if(sharedTags.length>0||sameTheme)edges.push({a:i,b:j,w:sharedTags.length+(sameTheme?1:0)});
+    }
+  }
+  const maxE=Math.max(1,...edges.map(e=>e.w));
+
+  let tick=0;
+  function frame(){
+    if(tick<300){
+      nodes.forEach((n1,i)=>{
+        nodes.forEach((n2,j)=>{
+          if(i===j)return;
+          const dx=n1.x-n2.x,dy=n1.y-n2.y;
+          const d=Math.max(1,Math.sqrt(dx*dx+dy*dy));
+          const f=1800/(d*d);
+          n1.vx+=dx/d*f;n1.vy+=dy/d*f;
+        });
+        n1.vx+=(W/2-n1.x)*0.008;n1.vy+=(H/2-n1.y)*0.008;
+      });
+      edges.forEach(e=>{
+        const a=nodes[e.a],b=nodes[e.b];
+        const dx=b.x-a.x,dy=b.y-a.y;
+        const d=Math.max(1,Math.sqrt(dx*dx+dy*dy));
+        const s=e.w/maxE*0.04;
+        a.vx+=dx*s;a.vy+=dy*s;
+        b.vx-=dx*s;b.vy-=dy*s;
+      });
+      nodes.forEach(n1=>{
+        n1.vx*=0.88;n1.vy*=0.88;
+        n1.x=Math.max(10,Math.min(W-10,n1.x+n1.vx));
+        n1.y=Math.max(10,Math.min(H-10,n1.y+n1.vy));
+      });
+      tick++;
+    }
+
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--bg')||'#F7F5F0';
+    ctx.fillRect(0,0,W,H);
+
+    edges.forEach(e=>{
+      const a=nodes[e.a],b=nodes[e.b];
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+      ctx.strokeStyle=`rgba(0,0,0,${0.03+e.w/maxE*0.15})`;
+      ctx.lineWidth=0.5+e.w/maxE*2;ctx.stroke();
+    });
+
+    nodes.forEach((nd,i)=>{
+      ctx.beginPath();ctx.arc(nd.x,nd.y,7,0,Math.PI*2);
+      ctx.fillStyle=nd.bg;ctx.fill();
+      ctx.strokeStyle=nd.color;ctx.lineWidth=1.5;ctx.stroke();
+    });
+
+    if(tick<300)netAnim=requestAnimationFrame(frame);
+  }
+  frame();
+
+  canvas.onclick=(e)=>{
+    const rect=canvas.getBoundingClientRect();
+    const mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    const scaleX=canvas.width/rect.width,scaleY=canvas.height/rect.height;
+    const cx=mx*scaleX,cy=my*scaleY;
+    nodes.forEach(nd=>{
+      const dx=cx-nd.x,dy=cy-nd.y;
+      if(dx*dx+dy*dy<100){
+        openSingleRaw(nd.r);
+      }
+    });
+  };
+  canvas.onmousemove=(e)=>{
+    const rect=canvas.getBoundingClientRect();
+    const mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    const scaleX=canvas.width/rect.width,scaleY=canvas.height/rect.height;
+    const cx=mx*scaleX,cy=my*scaleY;
+    let hit=false;
+    nodes.forEach(nd=>{const dx=cx-nd.x,dy=cy-nd.y;if(dx*dx+dy*dy<100)hit=true;});
+    canvas.style.cursor=hit?'pointer':'default';
+  };
+}
+
+function openSingleRaw(r){
+  const um=r.content.match(/https?:\/\/\S+/),aurl=um?um[0]:null;
+  const linkUrl=aurl||r.url||null;
+  document.getElementById('dtitle').textContent='Signal detail';
+  document.getElementById('dsub').textContent=r.date.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  document.getElementById('dfilt').style.display='none';
+  document.getElementById('dcnt').innerHTML=linkUrl
+    ?`<a href="${eh(linkUrl)}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:11px;color:var(--blue);text-decoration:none;background:var(--sur2);border:1px solid var(--bor);padding:4px 12px;border-radius:3px;display:inline-flex;align-items:center;gap:4px;margin-top:4px;">↗ open article</a>`
+    :'';
+  document.getElementById('dbody').innerHTML=cHtml(r);
+  document.getElementById('ov').classList.add('open');
+  document.getElementById('drw').classList.add('open');
+}
+
+// ── Search ───────────────────────────────────────────────────
+let searchActive=false;
+function doSearch(q){
+  q=(q||'').trim().toLowerCase();
+  const clearBtn=document.getElementById('search-clear');
+  const resultsEl=document.getElementById('search-results');
+  if(!q){clearSearch();return;}
+  if(!ROWS||!ROWS.length){return;}
+  clearBtn.style.display='block';
+  searchActive=true;
+  const matches=ROWS.filter(r=>{
+    const hay=(r.content+' '+r.tags+' '+r.theme+' '+r.url).toLowerCase();
+    return q.split(/\s+/).every(w=>hay.includes(w));
+  });
+  const listEl=document.getElementById('search-list');
+  const countEl=document.getElementById('search-count');
+  document.getElementById('search-title').childNodes[0].textContent='Results for "'+q+'" ';
+  countEl.textContent=matches.length+' signal'+(matches.length!==1?'s':'');
+  const hi=s=>{
+    if(!s)return '';
+    let o=eh(s);
+    q.split(/\s+/).forEach(w=>{
+      if(!w)return;
+      const re=new RegExp('('+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
+      o=o.replace(re,'<mark style="background:#FEF3C7;color:#92400E;border-radius:2px;padding:0 1px;">$1</mark>');
+    });
+    return o;
+  };
+  if(!matches.length){
+    listEl.innerHTML='<p style="font-size:13px;color:var(--txt2);padding:8px 0;">No signals found for "'+q+'".</p>';
+  } else {
+    listEl.innerHTML=matches.map(r=>{
+      const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};
+      const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
+      const um=r.content.match(/https?:\/\/\S+/),aurl=um?um[0]:null;
+      const linkUrl=aurl||r.url||null;
+      const idx2=ROWS.indexOf(r);
+      return `<div class="sitem" style="border-color:${td.c};cursor:pointer;" onclick="openSingleRaw(ROWS[${idx2}])">
+        <div class="stxt">${hi(txt.slice(0,300))}${txt.length>300?'&hellip;':''}</div>
+        <div class="smeta">
+          <span>${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
+          <span style="background:${td.bg};color:${td.fg};padding:1px 7px;border-radius:2px;font-size:9px;">${r.theme}</span>
+          ${linkUrl?`<a href="${eh(linkUrl)}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue);font-family:var(--mono);font-size:10px;text-decoration:none;background:var(--sur);border:1px solid var(--bor);padding:2px 8px;border-radius:3px;">↗ open</a>`:''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+  sw('ov');
+  resultsEl.style.display='block';
+}
+
+function clearSearch(){
+  searchActive=false;
+  document.getElementById('search').value='';
+  document.getElementById('search-clear').style.display='none';
+  document.getElementById('search-results').style.display='none';
+  if(ROWS&&ROWS.length)document.getElementById('dash').style.display='block';
+}
+
+// Allow Enter key and Escape key in search
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    closeD();
+    if(searchActive)clearSearch();
+    document.getElementById('search').blur();
+  }
+  if(e.key==='/'&&document.activeElement.tagName!=='INPUT'){
+    e.preventDefault();
+    document.getElementById('search').focus();
+  }
+});
+
 loadAll();
 </script>
 </body>
