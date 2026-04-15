@@ -121,22 +121,9 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
       <span class="live-badge"><span class="live-dot"></span>Live from Google Sheets</span>
       <button class="rbtn" onclick="loadAll()">↻ Refresh</button>
       <span style="font-family:var(--mono);font-size:10px;color:var(--txt3);" id="lup"></span>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <input type="text" id="search" placeholder="Search signals…"
-          oninput="doSearch(this.value)"
-          onkeydown="if(event.key==='Enter')doSearch(this.value);if(event.key==='Escape')clearSearch();"
-          style="font-family:var(--mono);font-size:12px;padding:5px 12px;border:1px solid var(--bor);border-radius:3px;background:var(--sur);color:var(--txt);outline:none;width:220px;">
-        <button onclick="clearSearch()" id="search-clear" style="display:none;font-family:var(--mono);font-size:11px;color:var(--txt2);border:1px solid var(--bor);background:var(--sur);padding:5px 10px;border-radius:3px;cursor:pointer;">✕</button>
-      </div>
     </div>
   </header>
   <div id="errmsg"></div>
-  <div id="search-results" style="display:none;">
-    <div class="card" style="margin-bottom:16px;">
-      <div class="ctitle" id="search-title">Search results <span class="chint" id="search-count"></span></div>
-      <div class="slist" id="search-list"></div>
-    </div>
-  </div>
   <div id="loading"><div class="spin"></div><p id="lmsg">Fetching signals…</p></div>
   <div id="dash" style="display:none;">
     <div class="tabs">
@@ -504,7 +491,7 @@ async function loadAll(){
       // Accept all rows with valid URL + date, classify from content+tags
       const tagList=ptag(tags);
       const theme=clf(tags,content);
-      ROWS.push({url,date,content,tags,tagList,theme,idx:ROWS.length});
+      ROWS.push({url,date,content,tags,tagList,theme});
     }
     ROWS.sort((a,b)=>b.date-a.date);
 
@@ -958,98 +945,6 @@ function openSingleRaw(r){
   document.getElementById('ov').classList.add('open');
   document.getElementById('drw').classList.add('open');
 }
-
-// ── Search ───────────────────────────────────────────────────
-let searchActive=false;
-function doSearch(q){
-  q=(q||'').trim().toLowerCase();
-  const clearBtn=document.getElementById('search-clear');
-  const resultsEl=document.getElementById('search-results');
-  const dashEl=document.getElementById('dash');
-  if(!q){
-    clearSearch();
-    return;
-  }
-  if(!ROWS||!ROWS.length){
-    resultsEl.style.display='block';
-    document.getElementById('search-list').innerHTML='<p style="font-size:13px;color:var(--txt2);padding:8px 0;">Data is still loading — please try again in a moment.</p>';
-    return;
-  }
-  clearBtn.style.display='block';
-  searchActive=true;
-  // Hide the main dash while showing search results
-  dashEl.style.display='none';
-
-  // Search across content, tags, theme, URL
-  const matches=ROWS.filter(r=>{
-    const haystack=(r.content+' '+r.tags+' '+r.theme+' '+r.url).toLowerCase();
-    // Support multi-word search: all words must match
-    return q.split(/\s+/).every(word=>haystack.includes(word));
-  });
-
-  // Render results
-  const listEl=document.getElementById('search-list');
-  const countEl=document.getElementById('search-count');
-  const titleEl=document.getElementById('search-title');
-
-  countEl.textContent=matches.length+' signal'+(matches.length!==1?'s':'');
-  titleEl.firstChild.textContent='Results for "'+q.trim()+'" ';
-
-  if(!matches.length){
-    listEl.innerHTML='<p style="font-size:13px;color:var(--txt2);padding:8px 0;">No signals found matching "'+q.trim()+'".</p>';
-  } else {
-    listEl.innerHTML=matches.map((r,i)=>{
-      const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};
-      const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
-      const um=r.content.match(/https?:\/\/\S+/),aurl=um?um[0]:null;
-      const linkUrl=aurl||r.url||null;
-      // Highlight matching terms
-      const hi=(s)=>{
-        if(!s)return '';
-        let out=eh(s);
-        q.split(/\s+/).forEach(word=>{
-          if(!word)return;
-          const re=new RegExp('('+word.replace(/[.*+?^${}()|[\]\]/g,'\$&')+')','gi');
-          out=out.replace(re,'<mark style="background:#FEF3C7;color:#92400E;border-radius:2px;padding:0 1px;">$1</mark>');
-        });
-        return out;
-      };
-      return `<div class="sitem" style="border-color:${td.c};cursor:pointer;" onclick="openSingleRaw(ROWS[${r.idx}])">
-        <div class="stxt">${hi(txt.slice(0,300))}${txt.length>300?'…':''}</div>
-        <div class="smeta">
-          <span>${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
-          <span style="background:${td.bg};color:${td.fg};padding:1px 7px;border-radius:2px;font-size:9px;">${r.theme}</span>
-          ${r.tagList.slice(0,3).map(t=>`<span style="font-size:10px;color:var(--txt3);">${eh(t)}</span>`).join('')}
-          ${linkUrl?`<a href="${eh(linkUrl)}" target="_blank" onclick="event.stopPropagation()" style="color:var(--blue);font-family:var(--mono);font-size:10px;text-decoration:none;background:var(--sur);border:1px solid var(--bor);padding:2px 8px;border-radius:3px;">↗ open</a>`:''}
-        </div>
-      </div>`;
-    }).join('');
-  }
-
-  resultsEl.style.display='block';
-  window.scrollTo({top:0,behavior:'smooth'});
-}
-
-function clearSearch(){
-  searchActive=false;
-  document.getElementById('search').value='';
-  document.getElementById('search-clear').style.display='none';
-  document.getElementById('search-results').style.display='none';
-  if(ROWS&&ROWS.length)document.getElementById('dash').style.display='block';
-}
-
-// Allow Enter key and Escape key in search
-document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){
-    closeD();
-    if(searchActive)clearSearch();
-    document.getElementById('search').blur();
-  }
-  if(e.key==='/'&&document.activeElement.tagName!=='INPUT'){
-    e.preventDefault();
-    document.getElementById('search').focus();
-  }
-});
 
 loadAll();
 </script>
