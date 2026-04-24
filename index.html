@@ -515,7 +515,8 @@ async function loadAll(){
       const aiSummary=(r[4]||'').trim();
       const aiTags=(r[5]||'').trim();
       const steep=(r[6]||'').trim();
-      const entities=(r[7]||'').trim();
+      // r[7] = Horizon (col H) — loaded but intentionally not displayed
+      const entities=(r[8]||'').trim();
 
       if(!url.startsWith('http'))continue;
       const date=pd(ds);if(!date)continue;
