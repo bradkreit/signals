@@ -110,6 +110,13 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
 /* Clickable dtag */
 .dtag{font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:10px;background:var(--sur2);color:var(--txt2);cursor:pointer;transition:all .12s;}
 .dtag:hover{background:var(--sur3);color:var(--txt);}
+/* Entity chips */
+.entity-chip{font-family:var(--mono);font-size:10px;padding:3px 9px;border-radius:3px;background:var(--sur2);color:var(--txt2);border:1px solid var(--bor);cursor:pointer;transition:all .12s;display:inline-block;}
+.entity-chip:hover{background:var(--sur3);border-color:var(--bor2);color:var(--txt);}
+.entity-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+/* Detail entity chips — slightly smaller */
+.dentity-chip{font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:3px;background:#EEF2F8;color:#2D5FA0;border:1px solid #C5D5EC;cursor:pointer;transition:all .12s;display:inline-block;}
+.dentity-chip:hover{background:#D6E4F5;}
 /* Related signals section */
 .drelated{margin-top:16px;padding-top:14px;border-top:1px solid var(--bor);}
 .drelated-title{font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--txt3);margin-bottom:10px;}
@@ -174,9 +181,15 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
           <div class="tcloud" id="tcloud"></div>
         </div>
       </div>
-      <div class="card" style="margin-bottom:16px;">
-        <div class="ctitle">Recent signals — last 14 days <span class="chint">click for detail</span></div>
-        <div class="slist" id="rsigs"></div>
+      <div class="r2" style="margin-bottom:16px;">
+        <div class="card">
+          <div class="ctitle">Top entities <span class="chint">people, orgs & technologies — click to filter</span></div>
+          <div id="ecloud"><p style="font-family:var(--mono);font-size:11px;color:var(--txt3);">Entities appear here once AI enrichment runs on your signals.</p></div>
+        </div>
+        <div class="card">
+          <div class="ctitle">Recent signals — last 14 days <span class="chint">click for detail</span></div>
+          <div class="slist" id="rsigs"></div>
+        </div>
       </div>
       <div class="card" style="margin-bottom:16px;">
         <div class="ctitle">Theme trends (monthly) <span class="chint">click segment</span></div>
@@ -678,6 +691,46 @@ function render(){
     return `<span class="tag" style="background:${bg};color:${fg};font-size:${sz}px;cursor:pointer;" onclick="filterByTag('${safe}')">${eh(o.display)}</span>`;
   }).join('');
 
+  // Top entities panel — built from col I (entities)
+  const efRaw={};
+  rows.forEach(r=>{
+    if(!r.entities)return;
+    r.entities.split(',').forEach(e=>{
+      const et=e.trim();
+      if(!et||et.length<2)return;
+      const key=et.toLowerCase();
+      if(!efRaw[key])efRaw[key]={display:et,count:0};
+      efRaw[key].count++;
+      // Prefer capitalised form
+      if(et[0]&&et[0]===et[0].toUpperCase())efRaw[key].display=et;
+    });
+  });
+  const topEntities=Object.values(efRaw)
+    .filter(o=>o.display.length>1&&o.display.length<60)
+    .sort((a,b)=>b.count-a.count)
+    .slice(0,60);
+  const ecloudEl=document.getElementById('ecloud');
+  if(topEntities.length){
+    const mxE=topEntities[0].count||1;
+    // Three buckets: people-ish, org-ish, tech-ish — cycle through distinct colors
+    const ecs=[
+      {bg:'#E6EEF7',fg:'#1B3E6B'}, // blue — orgs/companies
+      {bg:'#EDE9F7',fg:'#3A3070'}, // purple — people
+      {bg:'#E4F3F3',fg:'#115555'}, // teal — technologies
+      {bg:'#E5F1EA',fg:'#1A5C38'}, // green
+      {bg:'#FBF0DE',fg:'#7A5009'}, // amber
+      {bg:'#FAF0ED',fg:'#7A3020'}, // terracotta
+    ];
+    ecloudEl.innerHTML=`<div class="tcloud">${topEntities.map((o,i)=>{
+      const safe=o.display.replace(/'/g,"\\'");
+      const sz=10+Math.round(o.count/mxE*5);
+      const {bg,fg}=ecs[i%ecs.length];
+      return `<span class="tag" style="background:${bg};color:${fg};font-size:${sz}px;" onclick="filterByEntity('${safe}')">${eh(o.display)}<sup style="font-size:8px;margin-left:3px;opacity:0.6;">${o.count}</sup></span>`;
+    }).join('')}</div>`;
+  } else {
+    ecloudEl.innerHTML='<p style="font-family:var(--mono);font-size:11px;color:var(--txt3);">Entities appear here once AI enrichment runs on your signals.</p>';
+  }
+
   // Recent signals — with clickable tags
   const rrows=rows.filter(r=>r.date>=tw).slice(0,8);window._rr=rrows;
   document.getElementById('rsigs').innerHTML=rrows.map((r,i)=>{
@@ -762,9 +815,15 @@ function cHtml(r, showRelated=false){
     return `<span class="dtag" onclick="filterByTag('${safe}')">${eh(t)}</span>`;
   }).join('');
 
-  // Entities line
+  // Entities — clickable chips in detail view
   const entitiesHtml=r.entities
-    ?`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:6px;">Entities: ${eh(r.entities)}</div>`
+    ?`<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px;align-items:center;">
+        <span style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-right:2px;">Entities:</span>
+        ${r.entities.split(',').map(e=>e.trim()).filter(e=>e.length>1).map(e=>{
+          const safe=e.replace(/'/g,"\\'");
+          return `<span class="dentity-chip" onclick="filterByEntity('${safe}')">${eh(e)}</span>`;
+        }).join('')}
+      </div>`
     :'';
 
   // Related signals block
@@ -810,6 +869,13 @@ function cHtml(r, showRelated=false){
 function filterByTag(tag){
   const matched=ROWS.filter(r=>(r.tagList||[]).some(t=>t.toLowerCase()===tag.toLowerCase()));
   openD('Tag: '+tag, matched.length+' signal'+(matched.length!==1?'s':''), matched);
+}
+
+// Filter by entity — matches against col I entities string
+function filterByEntity(entity){
+  const key=entity.toLowerCase();
+  const matched=ROWS.filter(r=>r.entities&&r.entities.toLowerCase().split(',').some(e=>e.trim()===key));
+  openD('Entity: '+entity, matched.length+' signal'+(matched.length!==1?'s':''), matched);
 }
 
 function openD(title,subtitle,sigRows,tagFilter){
