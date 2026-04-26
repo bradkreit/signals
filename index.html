@@ -130,6 +130,11 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
 .wsec ul{padding-left:16px;display:flex;flex-direction:column;gap:4px;}
 .wsec li{font-size:13px;color:var(--txt);line-height:1.55;}
 @media(max-width:768px){.krow{grid-template-columns:repeat(2,1fr);}.r2,.r2b{grid-template-columns:1fr;}:root{--dw:100vw;}}
+/* Cluster tab */
+.cl-pool-item{transition:box-shadow .12s;}
+.cl-pool-item:hover{box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+.cl-card:hover{box-shadow:0 2px 6px rgba(0,0,0,0.08);}
+#cl-canvas{background-image:radial-gradient(circle,var(--bor) 1px,transparent 1px);background-size:24px 24px;}
 </style>
 </head>
 <body>
@@ -161,6 +166,7 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
       <div class="tab" onclick="sw('hm')">Co-occurrence</div>
       <div class="tab" onclick="sw('wk')">Weekly summaries</div>
       <div class="tab" onclick="sw('net')">Network</div>
+      <div class="tab" onclick="sw('cl')">Clusters</div>
     </div>
     <div class="tp active" id="tp-ov">
       <div id="search-results" style="display:none;margin-bottom:16px;">
@@ -241,6 +247,33 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
           <span style="font-size:11px;color:var(--txt3);align-self:center;font-family:var(--mono);">Click nodes to explore signals</span>
         </div>
         <canvas id="netCanvas" style="width:100%;background:var(--bg);border-radius:4px;" height="520"></canvas>
+      </div>
+    </div>
+    <div class="tp" id="tp-cl">
+      <!-- Cluster toolbar -->
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+        <button class="rbtn" onclick="addCluster()" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ New cluster</button>
+        <button class="rbtn" onclick="clearCanvas()">Clear canvas</button>
+        <button class="rbtn" onclick="saveLayout()">💾 Save layout</button>
+        <button class="rbtn" onclick="loadLayout()">↩ Restore saved</button>
+        <button class="rbtn" onclick="exportClusters()">↑ Export</button>
+        <button class="rbtn" onclick="document.getElementById('cl-import-input').click()">↓ Import</button>
+        <input type="file" id="cl-import-input" accept=".json" style="display:none;" onchange="importClustersFromFile(this)">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--txt3);margin-left:4px;">Drag signals from the pool onto the canvas · Drag cards into clusters</span>
+      </div>
+      <div style="display:grid;grid-template-columns:220px 1fr;gap:12px;align-items:start;">
+        <!-- Signal pool -->
+        <div style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;padding:12px;max-height:720px;overflow-y:auto;">
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3);margin-bottom:8px;">Signal pool</div>
+          <input type="text" id="cl-search" placeholder="Filter signals…" oninput="filterPool(this.value)"
+            style="width:100%;font-family:var(--mono);font-size:11px;padding:5px 8px;border:1px solid var(--bor);border-radius:3px;background:var(--bg);color:var(--txt);outline:none;margin-bottom:8px;">
+          <div id="cl-pool" style="display:flex;flex-direction:column;gap:5px;"></div>
+        </div>
+        <!-- Freeform canvas -->
+        <div id="cl-canvas" style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;min-height:720px;position:relative;overflow:hidden;">
+          <div id="cl-canvas-inner" style="position:absolute;inset:0;"></div>
+          <p id="cl-empty" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--mono);font-size:11px;color:var(--txt3);text-align:center;pointer-events:none;">Create clusters with + New cluster<br>then drag signals from the pool</p>
+        </div>
       </div>
     </div>
   </div>
@@ -929,11 +962,359 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeD();});
 function sw(name){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.tp').forEach(p=>p.classList.remove('active'));
-  const idx=['ov','hm','wk','net'].indexOf(name);
+  const idx=['ov','hm','wk','net','cl'].indexOf(name);
   document.querySelectorAll('.tab')[idx].classList.add('active');
   document.getElementById('tp-'+name).classList.add('active');
   if(name==='net')renderNet('theme');
+  if(name==='cl')initCluster();
 }
+
+// ── Cluster board ─────────────────────────────────────────────
+const CL_KEY='weaksig_clusters_v1';
+let clInited=false, clClusters=[], clCards={}, clDragState=null;
+
+function initCluster(){
+  if(!clInited){
+    clInited=true;
+    renderPool();
+    // Try to restore saved layout
+    const saved=localStorage.getItem(CL_KEY);
+    if(saved){try{importLayout(JSON.parse(saved));}catch(e){}}
+  }
+  document.getElementById('cl-empty').style.display=clClusters.length?'none':'block';
+}
+
+function renderPool(){
+  const pool=document.getElementById('cl-pool');
+  pool.innerHTML='';
+  const q=(document.getElementById('cl-search')?.value||'').toLowerCase();
+  const visible=ROWS.filter(r=>{
+    if(!q)return true;
+    return (r.content+' '+r.tags+' '+r.theme).toLowerCase().includes(q);
+  }).slice(0,120);
+  visible.forEach(r=>{
+    const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};
+    const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
+    const el=document.createElement('div');
+    el.className='cl-pool-item';
+    el.dataset.idx=r.idx;
+    el.innerHTML=`<div style="font-size:11px;line-height:1.4;color:var(--txt);">${eh(txt.slice(0,100))}${txt.length>100?'…':''}</div>
+      <div style="margin-top:3px;display:flex;gap:4px;align-items:center;">
+        <span style="font-family:var(--mono);font-size:9px;background:${td.bg};color:${td.fg};padding:1px 6px;border-radius:2px;">${r.theme.split(' ')[0]}</span>
+        <span style="font-family:var(--mono);font-size:9px;color:var(--txt3);">${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+      </div>`;
+    el.style.cssText='padding:7px 9px;background:var(--sur2);border:1px solid var(--bor);border-radius:4px;cursor:grab;border-left:3px solid '+td.c+';';
+    el.draggable=true;
+    el.addEventListener('dragstart',e=>{
+      e.dataTransfer.setData('text/plain',JSON.stringify({type:'pool',idx:r.idx}));
+      el.style.opacity='0.4';
+    });
+    el.addEventListener('dragend',()=>{el.style.opacity='1';});
+    pool.appendChild(el);
+  });
+}
+
+function filterPool(q){renderPool();}
+
+function addCluster(){
+  const name=prompt('Cluster name:','New cluster');
+  if(!name)return;
+  const canvas=document.getElementById('cl-canvas');
+  const rect=canvas.getBoundingClientRect();
+  const cl={
+    id:'cl_'+Date.now(),
+    name,
+    x:40+Math.random()*Math.max(0,rect.width-300),
+    y:40+Math.random()*Math.max(0,rect.height-200),
+    w:280,
+    signals:[]
+  };
+  clClusters.push(cl);
+  renderCluster(cl);
+  document.getElementById('cl-empty').style.display='none';
+  saveLayout();
+}
+
+function renderCluster(cl){
+  const inner=document.getElementById('cl-canvas-inner');
+  let el=document.getElementById(cl.id);
+  if(!el){
+    el=document.createElement('div');
+    el.id=cl.id;
+    inner.appendChild(el);
+  }
+  el.style.cssText=`position:absolute;left:${cl.x}px;top:${cl.y}px;width:${cl.w}px;
+    background:var(--sur);border:2px solid var(--bor2);border-radius:8px;
+    box-shadow:0 2px 12px rgba(0,0,0,0.08);z-index:10;min-height:80px;`;
+
+  // Render header + cards
+  const cardHtml=cl.signals.map(idx=>{
+    const r=ROWS[idx];if(!r)return'';
+    const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};
+    const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
+    return `<div class="cl-card" data-idx="${idx}" data-clid="${cl.id}"
+      style="margin:0 8px 6px;padding:7px 9px;background:var(--bg);border:1px solid var(--bor);
+      border-left:3px solid ${td.c};border-radius:4px;font-size:11px;line-height:1.4;
+      cursor:grab;position:relative;"
+      draggable="true">
+      ${eh(txt.slice(0,120))}${txt.length>120?'…':''}
+      <button onclick="removeFromCluster('${cl.id}',${idx})" title="Remove"
+        style="position:absolute;top:3px;right:3px;background:none;border:none;
+        cursor:pointer;font-size:10px;color:var(--txt3);line-height:1;">✕</button>
+    </div>`;
+  }).join('');
+
+  el.innerHTML=`
+    <div class="cl-header" data-clid="${cl.id}"
+      style="padding:8px 12px;background:var(--sur2);border-radius:6px 6px 0 0;
+      cursor:move;display:flex;justify-content:space-between;align-items:center;
+      border-bottom:1px solid var(--bor);">
+      <span style="font-family:var(--mono);font-size:11px;font-weight:500;color:var(--txt);"
+        ondblclick="renameCluster('${cl.id}')">${eh(cl.name)}</span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span style="font-family:var(--mono);font-size:9px;color:var(--txt3);">${cl.signals.length} signal${cl.signals.length!==1?'s':''}</span>
+        <button onclick="deleteCluster('${cl.id}')" title="Delete cluster"
+          style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--txt3);">🗑</button>
+      </div>
+    </div>
+    <div class="cl-dropzone" data-clid="${cl.id}"
+      style="padding:8px 0 8px;min-height:50px;">
+      ${cardHtml}
+      <div style="text-align:center;font-family:var(--mono);font-size:9px;color:var(--txt3);
+        padding:4px;opacity:${cl.signals.length?0.4:1};">drop signals here</div>
+    </div>`;
+
+  // Drag cluster cards between clusters
+  el.querySelectorAll('.cl-card').forEach(card=>{
+    card.addEventListener('dragstart',e=>{
+      e.stopPropagation();
+      e.dataTransfer.setData('text/plain',JSON.stringify({type:'card',idx:+card.dataset.idx,fromClId:card.dataset.clid}));
+      card.style.opacity='0.4';
+    });
+    card.addEventListener('dragend',()=>{card.style.opacity='1';});
+  });
+
+  // Drop zone
+  el.querySelectorAll('.cl-dropzone').forEach(dz=>{
+    dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.background='var(--sur2)';});
+    dz.addEventListener('dragleave',()=>{dz.style.background='';});
+    dz.addEventListener('drop',e=>{
+      e.preventDefault();e.stopPropagation();
+      dz.style.background='';
+      try{
+        const data=JSON.parse(e.dataTransfer.getData('text/plain'));
+        const toClId=dz.dataset.clid;
+        if(data.type==='pool'){
+          addToCluster(toClId,data.idx);
+        } else if(data.type==='card'){
+          if(data.fromClId!==toClId){
+            removeFromCluster(data.fromClId,data.idx,false);
+            addToCluster(toClId,data.idx);
+          }
+        }
+      }catch(e){}
+    });
+  });
+
+  // Drag cluster to move it
+  const header=el.querySelector('.cl-header');
+  let dragOff={x:0,y:0};
+  header.addEventListener('mousedown',e=>{
+    if(e.target.tagName==='BUTTON'||e.target.tagName==='SPAN'&&e.target.getAttribute('ondblclick'))return;
+    const rect2=el.getBoundingClientRect();
+    dragOff={x:e.clientX-rect2.left,y:e.clientY-rect2.top};
+    function onMove(ev){
+      const canvas=document.getElementById('cl-canvas');
+      const cr=canvas.getBoundingClientRect();
+      cl.x=Math.max(0,ev.clientX-cr.left-dragOff.x);
+      cl.y=Math.max(0,ev.clientY-cr.top-dragOff.y);
+      el.style.left=cl.x+'px';el.style.top=cl.y+'px';
+    }
+    function onUp(){
+      document.removeEventListener('mousemove',onMove);
+      document.removeEventListener('mouseup',onUp);
+      saveLayout();
+    }
+    document.addEventListener('mousemove',onMove);
+    document.addEventListener('mouseup',onUp);
+  });
+}
+
+function addToCluster(clId,idx){
+  const cl=clClusters.find(c=>c.id===clId);
+  if(!cl||cl.signals.includes(idx))return;
+  cl.signals.push(idx);
+  renderCluster(cl);
+  saveLayout();
+}
+
+function removeFromCluster(clId,idx,doSave=true){
+  const cl=clClusters.find(c=>c.id===clId);
+  if(!cl)return;
+  cl.signals=cl.signals.filter(i=>i!==+idx);
+  renderCluster(cl);
+  if(doSave)saveLayout();
+}
+
+function deleteCluster(clId){
+  if(!confirm('Delete this cluster?'))return;
+  clClusters=clClusters.filter(c=>c.id!==clId);
+  const el=document.getElementById(clId);
+  if(el)el.remove();
+  if(!clClusters.length)document.getElementById('cl-empty').style.display='block';
+  saveLayout();
+}
+
+function renameCluster(clId){
+  const cl=clClusters.find(c=>c.id===clId);
+  if(!cl)return;
+  const name=prompt('Rename cluster:',cl.name);
+  if(name){cl.name=name;renderCluster(cl);saveLayout();}
+}
+
+function clearCanvas(){
+  if(!confirm('Clear all clusters from the canvas?'))return;
+  clClusters=[];
+  document.getElementById('cl-canvas-inner').innerHTML='';
+  document.getElementById('cl-empty').style.display='block';
+  localStorage.removeItem(CL_KEY);
+}
+
+function saveLayout(){
+  const data=clClusters.map(cl=>({id:cl.id,name:cl.name,x:cl.x,y:cl.y,w:cl.w,signals:cl.signals}));
+  try{localStorage.setItem(CL_KEY,JSON.stringify(data));}catch(e){}
+}
+
+function loadLayout(){
+  const saved=localStorage.getItem(CL_KEY);
+  if(!saved){alert('No saved layout found.');return;}
+  try{
+    clClusters=[];
+    document.getElementById('cl-canvas-inner').innerHTML='';
+    importLayout(JSON.parse(saved));
+  }catch(e){alert('Could not restore layout.');}
+}
+
+function importLayout(data){
+  data.forEach(cl=>{
+    clClusters.push(cl);
+    renderCluster(cl);
+  });
+  document.getElementById('cl-empty').style.display=clClusters.length?'none':'block';
+}
+
+function exportClusters(){
+  if(!clClusters.length){alert('No clusters to export yet.');return;}
+  // Build a rich export that includes signal text so it's readable on any device
+  const data=clClusters.map(cl=>({
+    id:cl.id,
+    name:cl.name,
+    x:cl.x,
+    y:cl.y,
+    w:cl.w,
+    signals:cl.signals,
+    // Embed signal content so import works even if indices differ
+    signalSnapshots:cl.signals.map(idx=>{
+      const r=ROWS[idx];if(!r)return null;
+      return {
+        idx,
+        url:r.url,
+        content:r.content,
+        theme:r.theme,
+        date:r.date.toISOString(),
+        tags:r.tags,
+        aiSummary:r.aiSummary||'',
+        entities:r.entities||''
+      };
+    }).filter(Boolean)
+  }));
+  const json=JSON.stringify({exportedAt:new Date().toISOString(),clusters:data},null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='weak-signal-clusters-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importClustersFromFile(input){
+  const file=input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const parsed=JSON.parse(e.target.result);
+      const data=parsed.clusters||parsed; // handle both wrapped and raw formats
+      if(!Array.isArray(data))throw new Error('Invalid format');
+
+      // Try to match imported signals to current ROWS by URL, fall back to index
+      const urlMap={};
+      ROWS.forEach((r,i)=>{if(r.url)urlMap[r.url]=i;});
+
+      const remapped=data.map(cl=>{
+        const remappedSignals=[];
+        // First try snapshots (richer matching)
+        if(cl.signalSnapshots&&cl.signalSnapshots.length){
+          cl.signalSnapshots.forEach(snap=>{
+            const matchedIdx=urlMap[snap.url];
+            if(matchedIdx!==undefined){
+              remappedSignals.push(matchedIdx);
+            } else if(snap.idx<ROWS.length){
+              remappedSignals.push(snap.idx); // fall back to index
+            }
+          });
+        } else {
+          // Raw signal indices
+          cl.signals.forEach(idx=>{if(idx<ROWS.length)remappedSignals.push(idx);});
+        }
+        return{...cl,signals:remappedSignals};
+      });
+
+      const replace=clClusters.length
+        ?confirm('Replace existing clusters? Cancel to merge with current canvas.')
+        :true;
+
+      if(replace){
+        clClusters=[];
+        document.getElementById('cl-canvas-inner').innerHTML='';
+      }
+      importLayout(remapped);
+      saveLayout();
+      alert('Imported '+remapped.length+' cluster'+(remapped.length!==1?'s':'')+' successfully.');
+    }catch(err){
+      alert('Could not read file: '+err.message);
+    }
+    input.value=''; // reset so same file can be re-imported
+  };
+  reader.readAsText(file);
+}
+
+// Make canvas a drop target for pool items
+document.addEventListener('DOMContentLoaded',()=>{
+  const canvas=document.getElementById('cl-canvas');
+  if(!canvas)return;
+  canvas.addEventListener('dragover',e=>e.preventDefault());
+  canvas.addEventListener('drop',e=>{
+    // Only handle drops directly on the canvas (not on a cluster dropzone)
+    if(e.target.closest('.cl-dropzone')||e.target.closest('.cl-header'))return;
+    e.preventDefault();
+    try{
+      const data=JSON.parse(e.dataTransfer.getData('text/plain'));
+      if(data.type==='pool'){
+        // Create a new cluster at drop position
+        const rect=canvas.getBoundingClientRect();
+        const r=ROWS[data.idx];if(!r)return;
+        const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
+        const name=txt.slice(0,30)+(txt.length>30?'…':'');
+        const cl={id:'cl_'+Date.now(),name,x:e.clientX-rect.left-140,y:e.clientY-rect.top-20,w:280,signals:[data.idx]};
+        clClusters.push(cl);
+        renderCluster(cl);
+        document.getElementById('cl-empty').style.display='none';
+        saveLayout();
+      }
+    }catch(err){}
+  });
+});
 // ── Network graph ────────────────────────────────────────────
 let netMode='theme', netAnim=null;
 function renderNet(mode){
