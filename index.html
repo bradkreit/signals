@@ -167,6 +167,7 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
       <div class="tab" onclick="sw('wk')">Weekly summaries</div>
       <div class="tab" onclick="sw('net')">Network</div>
       <div class="tab" onclick="sw('cl')">Clusters</div>
+      <div class="tab" onclick="sw('sc2')">Scenarios</div>
     </div>
     <div class="tp active" id="tp-ov">
       <div id="search-results" style="display:none;margin-bottom:16px;">
@@ -273,6 +274,60 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
         <div id="cl-canvas" style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;min-height:720px;position:relative;overflow:hidden;">
           <div id="cl-canvas-inner" style="position:absolute;inset:0;"></div>
           <p id="cl-empty" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--mono);font-size:11px;color:var(--txt3);text-align:center;pointer-events:none;">Create clusters with + New cluster<br>then drag signals from the pool</p>
+        </div>
+      </div>
+    </div>
+    <!-- ── Scenarios tab ── -->
+    <div class="tp" id="tp-sc2">
+      <!-- Scenario toolbar -->
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+        <button class="rbtn" onclick="sc2New()" style="background:var(--blue);color:#fff;border-color:var(--blue);">+ New framework</button>
+        <select id="sc2-select" onchange="sc2Switch(this.value)"
+          style="font-family:var(--mono);font-size:11px;padding:5px 10px;border:1px solid var(--bor);border-radius:3px;background:var(--sur);color:var(--txt);cursor:pointer;">
+        </select>
+        <button class="rbtn" onclick="sc2Rename()">Rename</button>
+        <button class="rbtn" onclick="sc2Delete()">Delete</button>
+        <button class="rbtn" onclick="sc2Export()">↑ Export</button>
+        <button class="rbtn" onclick="document.getElementById('sc2-import-input').click()">↓ Import</button>
+        <input type="file" id="sc2-import-input" accept=".json" style="display:none;" onchange="sc2ImportFile(this)">
+      </div>
+      <!-- Axis editors -->
+      <div id="sc2-axis-bar" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px;background:var(--sur);border:1px solid var(--bor);border-radius:6px;padding:12px 16px;">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;">Axes of uncertainty</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--txt2);">X-axis:</span>
+          <input id="sc2-x-lo" placeholder="Low (left)" style="font-family:var(--mono);font-size:11px;width:110px;padding:4px 8px;border:1px solid var(--bor);border-radius:3px;background:var(--bg);color:var(--txt);outline:none;">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--txt3);">↔</span>
+          <input id="sc2-x-hi" placeholder="High (right)" style="font-family:var(--mono);font-size:11px;width:110px;padding:4px 8px;border:1px solid var(--bor);border-radius:3px;background:var(--bg);color:var(--txt);outline:none;">
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--txt2);">Y-axis:</span>
+          <input id="sc2-y-lo" placeholder="Low (bottom)" style="font-family:var(--mono);font-size:11px;width:110px;padding:4px 8px;border:1px solid var(--bor);border-radius:3px;background:var(--bg);color:var(--txt);outline:none;">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--txt3);">↕</span>
+          <input id="sc2-y-hi" placeholder="High (top)" style="font-family:var(--mono);font-size:11px;width:110px;padding:4px 8px;border:1px solid var(--bor);border-radius:3px;background:var(--bg);color:var(--txt);outline:none;">
+        </div>
+        <button class="rbtn" onclick="sc2SaveAxes()" style="margin-left:4px;">Apply axes</button>
+      </div>
+      <div style="display:grid;grid-template-columns:220px 1fr;gap:12px;align-items:start;">
+        <!-- Item pool -->
+        <div style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;padding:12px;max-height:760px;overflow-y:auto;">
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3);margin-bottom:8px;">Items</div>
+          <input type="text" id="sc2-search" placeholder="Filter signals…" oninput="sc2FilterPool(this.value)"
+            style="width:100%;font-family:var(--mono);font-size:11px;padding:5px 8px;border:1px solid var(--bor);border-radius:3px;background:var(--bg);color:var(--txt);outline:none;margin-bottom:6px;">
+          <!-- Custom item creator -->
+          <div style="margin-bottom:8px;border-bottom:1px solid var(--bor);padding-bottom:8px;">
+            <textarea id="sc2-custom-text" placeholder="Add a custom note or idea…"
+              style="width:100%;font-family:var(--sans);font-size:11px;padding:6px 8px;border:1px solid var(--bor);border-radius:3px;background:var(--bg);color:var(--txt);outline:none;resize:vertical;min-height:52px;"></textarea>
+            <button onclick="sc2AddCustom()" class="rbtn" style="width:100%;margin-top:4px;text-align:center;">+ Add to pool</button>
+          </div>
+          <div id="sc2-pool" style="display:flex;flex-direction:column;gap:5px;"></div>
+        </div>
+        <!-- 2x2 canvas -->
+        <div style="position:relative;">
+          <div id="sc2-canvas" style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;position:relative;overflow:hidden;" ondragover="event.preventDefault()" ondrop="sc2CanvasDrop(event)">
+            <!-- Quadrant grid drawn by JS -->
+            <div id="sc2-inner" style="position:absolute;inset:0;"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -962,11 +1017,12 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeD();});
 function sw(name){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.tp').forEach(p=>p.classList.remove('active'));
-  const idx=['ov','hm','wk','net','cl'].indexOf(name);
+  const idx=['ov','hm','wk','net','cl','sc2'].indexOf(name);
   document.querySelectorAll('.tab')[idx].classList.add('active');
   document.getElementById('tp-'+name).classList.add('active');
   if(name==='net')renderNet('theme');
   if(name==='cl')initCluster();
+  if(name==='sc2')sc2Init();
 }
 
 // ── Cluster board ─────────────────────────────────────────────
@@ -977,7 +1033,6 @@ function initCluster(){
   if(!clInited){
     clInited=true;
     renderPool();
-    // Try to restore saved layout
     const saved=localStorage.getItem(CL_KEY);
     if(saved){try{importLayout(JSON.parse(saved));}catch(e){}}
   }
@@ -1027,7 +1082,8 @@ function addCluster(){
     x:40+Math.random()*Math.max(0,rect.width-300),
     y:40+Math.random()*Math.max(0,rect.height-200),
     w:280,
-    signals:[]
+    signals:[],
+    notes:''
   };
   clClusters.push(cl);
   renderCluster(cl);
@@ -1038,16 +1094,11 @@ function addCluster(){
 function renderCluster(cl){
   const inner=document.getElementById('cl-canvas-inner');
   let el=document.getElementById(cl.id);
-  if(!el){
-    el=document.createElement('div');
-    el.id=cl.id;
-    inner.appendChild(el);
-  }
+  if(!el){el=document.createElement('div');el.id=cl.id;inner.appendChild(el);}
   el.style.cssText=`position:absolute;left:${cl.x}px;top:${cl.y}px;width:${cl.w}px;
     background:var(--sur);border:2px solid var(--bor2);border-radius:8px;
     box-shadow:0 2px 12px rgba(0,0,0,0.08);z-index:10;min-height:80px;`;
 
-  // Render header + cards
   const cardHtml=cl.signals.map(idx=>{
     const r=ROWS[idx];if(!r)return'';
     const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};
@@ -1055,8 +1106,7 @@ function renderCluster(cl){
     return `<div class="cl-card" data-idx="${idx}" data-clid="${cl.id}"
       style="margin:0 8px 6px;padding:7px 9px;background:var(--bg);border:1px solid var(--bor);
       border-left:3px solid ${td.c};border-radius:4px;font-size:11px;line-height:1.4;
-      cursor:grab;position:relative;"
-      draggable="true">
+      cursor:grab;position:relative;" draggable="true">
       ${eh(txt.slice(0,120))}${txt.length>120?'…':''}
       <button onclick="removeFromCluster('${cl.id}',${idx})" title="Remove"
         style="position:absolute;top:3px;right:3px;background:none;border:none;
@@ -1064,13 +1114,16 @@ function renderCluster(cl){
     </div>`;
   }).join('');
 
+  // Cluster notes textarea
+  const notesVal=cl.notes||'';
+
   el.innerHTML=`
     <div class="cl-header" data-clid="${cl.id}"
       style="padding:8px 12px;background:var(--sur2);border-radius:6px 6px 0 0;
       cursor:move;display:flex;justify-content:space-between;align-items:center;
       border-bottom:1px solid var(--bor);">
-      <span style="font-family:var(--mono);font-size:11px;font-weight:500;color:var(--txt);"
-        ondblclick="renameCluster('${cl.id}')">${eh(cl.name)}</span>
+      <span class="cl-name-label" style="font-family:var(--mono);font-size:11px;font-weight:500;color:var(--txt);cursor:text;"
+        ondblclick="clStartRename('${cl.id}',this)">${eh(cl.name)}</span>
       <div style="display:flex;gap:6px;align-items:center;">
         <span style="font-family:var(--mono);font-size:9px;color:var(--txt3);">${cl.signals.length} signal${cl.signals.length!==1?'s':''}</span>
         <button onclick="deleteCluster('${cl.id}')" title="Delete cluster"
@@ -1078,13 +1131,16 @@ function renderCluster(cl){
       </div>
     </div>
     <div class="cl-dropzone" data-clid="${cl.id}"
-      style="padding:8px 0 8px;min-height:50px;">
+      style="padding:8px 0 4px;min-height:40px;">
       ${cardHtml}
       <div style="text-align:center;font-family:var(--mono);font-size:9px;color:var(--txt3);
-        padding:4px;opacity:${cl.signals.length?0.4:1};">drop signals here</div>
-    </div>`;
+        padding:2px;opacity:${cl.signals.length?0.4:1};">drop signals here</div>
+    </div>
+    <textarea placeholder="Cluster notes…" onchange="clSaveNotes('${cl.id}',this.value)"
+      style="width:100%;font-family:var(--sans);font-size:11px;padding:6px 10px;
+      border:none;border-top:1px solid var(--bor);border-radius:0 0 6px 6px;
+      background:var(--bg);color:var(--txt);resize:vertical;min-height:40px;outline:none;">${eh(notesVal)}</textarea>`;
 
-  // Drag cluster cards between clusters
   el.querySelectorAll('.cl-card').forEach(card=>{
     card.addEventListener('dragstart',e=>{
       e.stopPropagation();
@@ -1094,24 +1150,16 @@ function renderCluster(cl){
     card.addEventListener('dragend',()=>{card.style.opacity='1';});
   });
 
-  // Drop zone
   el.querySelectorAll('.cl-dropzone').forEach(dz=>{
     dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.background='var(--sur2)';});
     dz.addEventListener('dragleave',()=>{dz.style.background='';});
     dz.addEventListener('drop',e=>{
-      e.preventDefault();e.stopPropagation();
-      dz.style.background='';
+      e.preventDefault();e.stopPropagation();dz.style.background='';
       try{
         const data=JSON.parse(e.dataTransfer.getData('text/plain'));
         const toClId=dz.dataset.clid;
-        if(data.type==='pool'){
-          addToCluster(toClId,data.idx);
-        } else if(data.type==='card'){
-          if(data.fromClId!==toClId){
-            removeFromCluster(data.fromClId,data.idx,false);
-            addToCluster(toClId,data.idx);
-          }
-        }
+        if(data.type==='pool')addToCluster(toClId,data.idx);
+        else if(data.type==='card'&&data.fromClId!==toClId){removeFromCluster(data.fromClId,data.idx,false);addToCluster(toClId,data.idx);}
       }catch(e){}
     });
   });
@@ -1120,7 +1168,7 @@ function renderCluster(cl){
   const header=el.querySelector('.cl-header');
   let dragOff={x:0,y:0};
   header.addEventListener('mousedown',e=>{
-    if(e.target.tagName==='BUTTON'||e.target.tagName==='SPAN'&&e.target.getAttribute('ondblclick'))return;
+    if(e.target.tagName==='BUTTON'||e.target.classList.contains('cl-name-label'))return;
     const rect2=el.getBoundingClientRect();
     dragOff={x:e.clientX-rect2.left,y:e.clientY-rect2.top};
     function onMove(ev){
@@ -1130,44 +1178,55 @@ function renderCluster(cl){
       cl.y=Math.max(0,ev.clientY-cr.top-dragOff.y);
       el.style.left=cl.x+'px';el.style.top=cl.y+'px';
     }
-    function onUp(){
-      document.removeEventListener('mousemove',onMove);
-      document.removeEventListener('mouseup',onUp);
-      saveLayout();
-    }
+    function onUp(){document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);saveLayout();}
     document.addEventListener('mousemove',onMove);
     document.addEventListener('mouseup',onUp);
   });
 }
 
+function clStartRename(clId,labelEl){
+  const cl=clClusters.find(c=>c.id===clId);if(!cl)return;
+  const inp=document.createElement('input');
+  inp.value=cl.name;
+  inp.style.cssText='font-family:var(--mono);font-size:11px;font-weight:500;border:1px solid var(--blue);border-radius:2px;padding:1px 4px;width:140px;outline:none;';
+  labelEl.replaceWith(inp);
+  inp.focus();inp.select();
+  const done=()=>{
+    const newName=inp.value.trim()||cl.name;
+    cl.name=newName;
+    renderCluster(cl);
+    saveLayout();
+  };
+  inp.addEventListener('blur',done);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter')inp.blur();if(e.key==='Escape'){inp.value=cl.name;inp.blur();}});
+}
+
+function clSaveNotes(clId,val){
+  const cl=clClusters.find(c=>c.id===clId);if(cl){cl.notes=val;saveLayout();}
+}
+
 function addToCluster(clId,idx){
   const cl=clClusters.find(c=>c.id===clId);
   if(!cl||cl.signals.includes(idx))return;
-  cl.signals.push(idx);
-  renderCluster(cl);
-  saveLayout();
+  cl.signals.push(idx);renderCluster(cl);saveLayout();
 }
 
 function removeFromCluster(clId,idx,doSave=true){
-  const cl=clClusters.find(c=>c.id===clId);
-  if(!cl)return;
+  const cl=clClusters.find(c=>c.id===clId);if(!cl)return;
   cl.signals=cl.signals.filter(i=>i!==+idx);
-  renderCluster(cl);
-  if(doSave)saveLayout();
+  renderCluster(cl);if(doSave)saveLayout();
 }
 
 function deleteCluster(clId){
   if(!confirm('Delete this cluster?'))return;
   clClusters=clClusters.filter(c=>c.id!==clId);
-  const el=document.getElementById(clId);
-  if(el)el.remove();
+  const el=document.getElementById(clId);if(el)el.remove();
   if(!clClusters.length)document.getElementById('cl-empty').style.display='block';
   saveLayout();
 }
 
 function renameCluster(clId){
-  const cl=clClusters.find(c=>c.id===clId);
-  if(!cl)return;
+  const cl=clClusters.find(c=>c.id===clId);if(!cl)return;
   const name=prompt('Rename cluster:',cl.name);
   if(name){cl.name=name;renderCluster(cl);saveLayout();}
 }
@@ -1181,140 +1240,517 @@ function clearCanvas(){
 }
 
 function saveLayout(){
-  const data=clClusters.map(cl=>({id:cl.id,name:cl.name,x:cl.x,y:cl.y,w:cl.w,signals:cl.signals}));
+  const data=clClusters.map(cl=>({id:cl.id,name:cl.name,x:cl.x,y:cl.y,w:cl.w,signals:cl.signals,notes:cl.notes||''}));
   try{localStorage.setItem(CL_KEY,JSON.stringify(data));}catch(e){}
 }
 
 function loadLayout(){
   const saved=localStorage.getItem(CL_KEY);
   if(!saved){alert('No saved layout found.');return;}
-  try{
-    clClusters=[];
-    document.getElementById('cl-canvas-inner').innerHTML='';
-    importLayout(JSON.parse(saved));
-  }catch(e){alert('Could not restore layout.');}
+  try{clClusters=[];document.getElementById('cl-canvas-inner').innerHTML='';importLayout(JSON.parse(saved));}
+  catch(e){alert('Could not restore layout.');}
 }
 
 function importLayout(data){
-  data.forEach(cl=>{
-    clClusters.push(cl);
-    renderCluster(cl);
-  });
+  data.forEach(cl=>{clClusters.push(cl);renderCluster(cl);});
   document.getElementById('cl-empty').style.display=clClusters.length?'none':'block';
 }
 
 function exportClusters(){
   if(!clClusters.length){alert('No clusters to export yet.');return;}
-  // Build a rich export that includes signal text so it's readable on any device
   const data=clClusters.map(cl=>({
-    id:cl.id,
-    name:cl.name,
-    x:cl.x,
-    y:cl.y,
-    w:cl.w,
-    signals:cl.signals,
-    // Embed signal content so import works even if indices differ
+    id:cl.id,name:cl.name,x:cl.x,y:cl.y,w:cl.w,signals:cl.signals,notes:cl.notes||'',
     signalSnapshots:cl.signals.map(idx=>{
       const r=ROWS[idx];if(!r)return null;
-      return {
-        idx,
-        url:r.url,
-        content:r.content,
-        theme:r.theme,
-        date:r.date.toISOString(),
-        tags:r.tags,
-        aiSummary:r.aiSummary||'',
-        entities:r.entities||''
-      };
+      return{idx,url:r.url,content:r.content,theme:r.theme,date:r.date.toISOString(),tags:r.tags,aiSummary:r.aiSummary||'',entities:r.entities||''};
     }).filter(Boolean)
   }));
   const json=JSON.stringify({exportedAt:new Date().toISOString(),clusters:data},null,2);
   const blob=new Blob([json],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download='weak-signal-clusters-'+new Date().toISOString().slice(0,10)+'.json';
-  a.click();
-  URL.revokeObjectURL(a.href);
+  a.click();URL.revokeObjectURL(a.href);
 }
 
 function importClustersFromFile(input){
-  const file=input.files[0];
-  if(!file)return;
+  const file=input.files[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=e=>{
     try{
       const parsed=JSON.parse(e.target.result);
-      const data=parsed.clusters||parsed; // handle both wrapped and raw formats
+      const data=parsed.clusters||parsed;
       if(!Array.isArray(data))throw new Error('Invalid format');
-
-      // Try to match imported signals to current ROWS by URL, fall back to index
-      const urlMap={};
-      ROWS.forEach((r,i)=>{if(r.url)urlMap[r.url]=i;});
-
+      const urlMap={};ROWS.forEach((r,i)=>{if(r.url)urlMap[r.url]=i;});
       const remapped=data.map(cl=>{
         const remappedSignals=[];
-        // First try snapshots (richer matching)
         if(cl.signalSnapshots&&cl.signalSnapshots.length){
           cl.signalSnapshots.forEach(snap=>{
             const matchedIdx=urlMap[snap.url];
-            if(matchedIdx!==undefined){
-              remappedSignals.push(matchedIdx);
-            } else if(snap.idx<ROWS.length){
-              remappedSignals.push(snap.idx); // fall back to index
-            }
+            if(matchedIdx!==undefined)remappedSignals.push(matchedIdx);
+            else if(snap.idx<ROWS.length)remappedSignals.push(snap.idx);
           });
-        } else {
-          // Raw signal indices
-          cl.signals.forEach(idx=>{if(idx<ROWS.length)remappedSignals.push(idx);});
-        }
+        } else {cl.signals.forEach(idx=>{if(idx<ROWS.length)remappedSignals.push(idx);});}
         return{...cl,signals:remappedSignals};
       });
-
-      const replace=clClusters.length
-        ?confirm('Replace existing clusters? Cancel to merge with current canvas.')
-        :true;
-
-      if(replace){
-        clClusters=[];
-        document.getElementById('cl-canvas-inner').innerHTML='';
-      }
-      importLayout(remapped);
-      saveLayout();
+      const replace=clClusters.length?confirm('Replace existing clusters? Cancel to merge.'):true;
+      if(replace){clClusters=[];document.getElementById('cl-canvas-inner').innerHTML='';}
+      importLayout(remapped);saveLayout();
       alert('Imported '+remapped.length+' cluster'+(remapped.length!==1?'s':'')+' successfully.');
-    }catch(err){
-      alert('Could not read file: '+err.message);
-    }
-    input.value=''; // reset so same file can be re-imported
+    }catch(err){alert('Could not read file: '+err.message);}
+    input.value='';
   };
   reader.readAsText(file);
 }
 
-// Make canvas a drop target for pool items
 document.addEventListener('DOMContentLoaded',()=>{
   const canvas=document.getElementById('cl-canvas');
   if(!canvas)return;
   canvas.addEventListener('dragover',e=>e.preventDefault());
   canvas.addEventListener('drop',e=>{
-    // Only handle drops directly on the canvas (not on a cluster dropzone)
     if(e.target.closest('.cl-dropzone')||e.target.closest('.cl-header'))return;
     e.preventDefault();
     try{
       const data=JSON.parse(e.dataTransfer.getData('text/plain'));
       if(data.type==='pool'){
-        // Create a new cluster at drop position
         const rect=canvas.getBoundingClientRect();
         const r=ROWS[data.idx];if(!r)return;
         const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
-        const name=txt.slice(0,30)+(txt.length>30?'…':'');
-        const cl={id:'cl_'+Date.now(),name,x:e.clientX-rect.left-140,y:e.clientY-rect.top-20,w:280,signals:[data.idx]};
-        clClusters.push(cl);
-        renderCluster(cl);
-        document.getElementById('cl-empty').style.display='none';
-        saveLayout();
+        const cl={id:'cl_'+Date.now(),name:txt.slice(0,30)+(txt.length>30?'…':''),
+          x:e.clientX-rect.left-140,y:e.clientY-rect.top-20,w:280,signals:[data.idx],notes:''};
+        clClusters.push(cl);renderCluster(cl);
+        document.getElementById('cl-empty').style.display='none';saveLayout();
       }
     }catch(err){}
   });
 });
+
+// ── 2x2 Scenario Framework ────────────────────────────────────
+const SC2_KEY='weaksig_scenarios_v1';
+let sc2Inited=false, sc2Frameworks=[], sc2ActiveId=null, sc2CustomItems=[];
+
+function sc2Init(){
+  if(!sc2Inited){
+    sc2Inited=true;
+    const saved=localStorage.getItem(SC2_KEY);
+    if(saved){try{sc2Frameworks=JSON.parse(saved);}catch(e){}}
+    if(!sc2Frameworks.length)sc2CreateFramework('Untitled framework',false);
+    sc2ActiveId=sc2Frameworks[0].id;
+    sc2BuildSelect();
+    sc2Render();
+    sc2RenderPool();
+  } else {
+    sc2Render();
+    sc2RenderPool();
+  }
+}
+
+function sc2CreateFramework(name,andSwitch=true){
+  const fw={
+    id:'sc2_'+Date.now(),
+    name,
+    xLo:'',xHi:'',yLo:'',yHi:'',
+    quadrantNames:['Scenario A','Scenario B','Scenario C','Scenario D'],
+    items:[] // {id, type:'signal'|'tag'|'custom', ref, label, x, y (0-1 within quadrant), quadrant:0-3}
+  };
+  sc2Frameworks.push(fw);
+  if(andSwitch){sc2ActiveId=fw.id;}
+  sc2BuildSelect();
+  if(andSwitch)sc2Render();
+  sc2Save();
+  return fw;
+}
+
+function sc2BuildSelect(){
+  const sel=document.getElementById('sc2-select');
+  if(!sel)return;
+  sel.innerHTML=sc2Frameworks.map(fw=>`<option value="${fw.id}"${fw.id===sc2ActiveId?' selected':''}>${eh(fw.name)}</option>`).join('');
+}
+
+function sc2Switch(id){
+  sc2ActiveId=id;
+  sc2Render();
+}
+
+function sc2New(){
+  const name=prompt('Framework name:','New scenario framework');
+  if(!name)return;
+  sc2CreateFramework(name,true);
+}
+
+function sc2Rename(){
+  const fw=sc2Frameworks.find(f=>f.id===sc2ActiveId);if(!fw)return;
+  const name=prompt('Rename framework:',fw.name);
+  if(name){fw.name=name;sc2BuildSelect();sc2Save();}
+}
+
+function sc2Delete(){
+  if(sc2Frameworks.length===1){alert('You need at least one framework.');return;}
+  if(!confirm('Delete this framework?'))return;
+  sc2Frameworks=sc2Frameworks.filter(f=>f.id!==sc2ActiveId);
+  sc2ActiveId=sc2Frameworks[0].id;
+  sc2BuildSelect();sc2Render();sc2Save();
+}
+
+function sc2Active(){return sc2Frameworks.find(f=>f.id===sc2ActiveId);}
+
+function sc2SaveAxes(){
+  const fw=sc2Active();if(!fw)return;
+  fw.xLo=document.getElementById('sc2-x-lo').value.trim();
+  fw.xHi=document.getElementById('sc2-x-hi').value.trim();
+  fw.yLo=document.getElementById('sc2-y-lo').value.trim();
+  fw.yHi=document.getElementById('sc2-y-hi').value.trim();
+  sc2Render();sc2Save();
+}
+
+function sc2Render(){
+  const fw=sc2Active();if(!fw)return;
+  // Populate axis inputs
+  document.getElementById('sc2-x-lo').value=fw.xLo||'';
+  document.getElementById('sc2-x-hi').value=fw.xHi||'';
+  document.getElementById('sc2-y-lo').value=fw.yLo||'';
+  document.getElementById('sc2-y-hi').value=fw.yHi||'';
+
+  const canvas=document.getElementById('sc2-canvas');
+  const inner=document.getElementById('sc2-inner');
+
+  // Canvas size — use available width
+  const W=canvas.parentElement.offsetWidth||700;
+  const H=Math.round(W*0.72);
+  canvas.style.height=H+'px';
+
+  const PAD=48; // space for axis labels
+  const cw=W-PAD*2, ch=H-PAD*2; // usable inner area
+
+  inner.innerHTML='';
+
+  // Draw SVG grid + axis labels
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('width',W);svg.setAttribute('height',H);
+  svg.style.cssText='position:absolute;inset:0;pointer-events:none;';
+
+  // Quadrant fill colors
+  const qColors=['#EEF5FB','#EDF7F2','#FBF5EE','#F5EEEE'];
+  [[0,0],[1,0],[0,1],[1,1]].forEach(([qx,qy],i)=>{
+    const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('x',PAD+qx*cw/2);rect.setAttribute('y',PAD+qy*ch/2);
+    rect.setAttribute('width',cw/2);rect.setAttribute('height',ch/2);
+    rect.setAttribute('fill',qColors[i]);rect.setAttribute('rx','0');
+    svg.appendChild(rect);
+  });
+
+  // Grid lines
+  const addLine=(x1,y1,x2,y2,dash=false)=>{
+    const l=document.createElementNS('http://www.w3.org/2000/svg','line');
+    l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);
+    l.setAttribute('stroke','#D0CBC0');l.setAttribute('stroke-width','1.5');
+    if(dash)l.setAttribute('stroke-dasharray','4,3');
+    svg.appendChild(l);
+  };
+  addLine(PAD,PAD,PAD,PAD+ch);addLine(PAD,PAD+ch,PAD+cw,PAD+ch);
+  addLine(PAD+cw,PAD,PAD+cw,PAD+ch);addLine(PAD,PAD,PAD+cw,PAD);
+  addLine(PAD+cw/2,PAD,PAD+cw/2,PAD+ch,true);
+  addLine(PAD,PAD+ch/2,PAD+cw,PAD+ch/2,true);
+
+  // Axis arrows
+  const addArrow=(x1,y1,x2,y2)=>{
+    const l=document.createElementNS('http://www.w3.org/2000/svg','line');
+    l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);
+    l.setAttribute('stroke','#9C9890');l.setAttribute('stroke-width','1');
+    svg.appendChild(l);
+  };
+
+  // Axis label helper
+  const addText=(txt,x,y,anchor='middle',size=10,color='#9C9890',bold=false)=>{
+    const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',x);t.setAttribute('y',y);t.setAttribute('text-anchor',anchor);
+    t.setAttribute('font-size',size);t.setAttribute('fill',color);
+    t.setAttribute('font-family','DM Mono, monospace');
+    if(bold)t.setAttribute('font-weight','600');
+    t.textContent=txt;svg.appendChild(t);
+  };
+
+  if(fw.xLo)addText(fw.xLo,PAD+8,PAD+ch+14,'start',10,'#6B6760');
+  if(fw.xHi)addText(fw.xHi,PAD+cw-4,PAD+ch+14,'end',10,'#6B6760');
+  if(fw.yLo)addText(fw.yLo,PAD-6,PAD+ch-4,'end',10,'#6B6760');
+  if(fw.yHi)addText(fw.yHi,PAD-6,PAD+8,'end',10,'#6B6760');
+
+  // X axis label (center bottom)
+  const xLabel=fw.xLo&&fw.xHi?fw.xLo+' → '+fw.xHi:'X axis';
+  addText(xLabel,PAD+cw/2,H-4,'middle',10,'#9C9890');
+  // Y axis label (rotated)
+  const yLabel=fw.yLo&&fw.yHi?fw.yLo+' → '+fw.yHi:'Y axis';
+  const yt=document.createElementNS('http://www.w3.org/2000/svg','text');
+  yt.setAttribute('x',10);yt.setAttribute('y',PAD+ch/2);
+  yt.setAttribute('text-anchor','middle');yt.setAttribute('font-size',10);
+  yt.setAttribute('fill','#9C9890');yt.setAttribute('font-family','DM Mono, monospace');
+  yt.setAttribute('transform',`rotate(-90,10,${PAD+ch/2})`);
+  yt.textContent=yLabel;svg.appendChild(yt);
+
+  inner.appendChild(svg);
+
+  // Quadrant name labels — editable overlays
+  // Quadrants: 0=top-left, 1=top-right, 2=bottom-left, 3=bottom-right
+  const qPositions=[
+    {x:PAD+4,y:PAD+4,ax:'left',ay:'top'},
+    {x:PAD+cw-4,y:PAD+4,ax:'right',ay:'top'},
+    {x:PAD+4,y:PAD+ch-4,ax:'left',ay:'bottom'},
+    {x:PAD+cw-4,y:PAD+ch-4,ax:'right',ay:'bottom'},
+  ];
+  const qColors2=['#1B3E6B','#1A5C38','#7A5009','#7A3020'];
+  qPositions.forEach((qp,qi)=>{
+    const lbl=document.createElement('div');
+    lbl.style.cssText=`position:absolute;font-family:var(--serif);font-size:13px;font-weight:700;
+      color:${qColors2[qi]};opacity:0.7;cursor:text;max-width:${cw/2-16}px;word-break:break-word;
+      ${qp.ay==='top'?'top:'+(qp.y)+'px':'bottom:'+(H-qp.y)+'px'};
+      ${qp.ax==='left'?'left:'+(qp.x)+'px':'right:'+(W-qp.x)+'px'};`;
+    lbl.title='Double-click to rename scenario';
+    lbl.textContent=fw.quadrantNames[qi]||'Scenario '+'ABCD'[qi];
+    lbl.addEventListener('dblclick',()=>{
+      const inp=document.createElement('input');
+      inp.value=lbl.textContent;
+      inp.style.cssText=`font-family:var(--serif);font-size:13px;font-weight:700;color:${qColors2[qi]};
+        border:1px solid var(--blue);border-radius:2px;padding:1px 4px;width:140px;outline:none;background:rgba(255,255,255,0.9);`;
+      lbl.replaceWith(inp);inp.focus();inp.select();
+      const done=()=>{
+        fw.quadrantNames[qi]=inp.value.trim()||fw.quadrantNames[qi];
+        sc2Render();sc2Save();
+      };
+      inp.addEventListener('blur',done);
+      inp.addEventListener('keydown',e=>{if(e.key==='Enter')inp.blur();if(e.key==='Escape'){inp.value=fw.quadrantNames[qi];inp.blur();}});
+    });
+    inner.appendChild(lbl);
+  });
+
+  // Render items already placed on the framework
+  fw.items.forEach(item=>sc2RenderItem(item,fw,PAD,cw,ch,H,W,inner));
+
+  // Drop zone overlay for the four quadrants
+  [[0,0,0],[1,0,1],[0,1,2],[1,1,3]].forEach(([qx,qy,qi])=>{
+    const dz=document.createElement('div');
+    dz.style.cssText=`position:absolute;left:${PAD+qx*cw/2}px;top:${PAD+qy*ch/2}px;
+      width:${cw/2}px;height:${ch/2}px;z-index:5;`;
+    dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.background='rgba(45,95,160,0.06)';});
+    dz.addEventListener('dragleave',()=>{dz.style.background='';});
+    dz.addEventListener('drop',e=>{
+      e.preventDefault();dz.style.background='';
+      const rect=dz.getBoundingClientRect();
+      const rx=(e.clientX-rect.left)/rect.width;
+      const ry=(e.clientY-rect.top)/rect.height;
+      try{
+        const data=JSON.parse(e.dataTransfer.getData('text/plain'));
+        sc2AddItem(data,qi,Math.max(0.05,Math.min(0.95,rx)),Math.max(0.05,Math.min(0.95,ry)));
+      }catch(err){}
+    });
+    inner.appendChild(dz);
+  });
+}
+
+function sc2RenderItem(item,fw,PAD,cw,ch,H,W,inner){
+  // Map quadrant + relative position to absolute canvas position
+  const qx=item.quadrant%2, qy=Math.floor(item.quadrant/2);
+  // y is inverted (0=top in screen, 0=bottom in scenario space)
+  const ax=PAD+qx*cw/2+item.x*cw/2;
+  const ay=PAD+qy*ch/2+item.y*ch/2;
+
+  const el=document.createElement('div');
+  el.style.cssText=`position:absolute;left:${ax}px;top:${ay}px;transform:translate(-50%,-50%);
+    z-index:20;max-width:140px;cursor:move;`;
+
+  let bg='#E6EEF7',fg='#1B3E6B',borderColor='#2D5FA0';
+  if(item.type==='tag'){bg='#EDE9F7';fg='#3A3070';borderColor='#5B4FA0';}
+  if(item.type==='custom'){bg='#FBF0DE';fg='#7A5009';borderColor='#B8760F';}
+  if(item.type==='signal'&&item.ref!==undefined){
+    const r=ROWS[item.ref];
+    if(r){const td=TM[r.theme]||{};bg=td.bg||bg;fg=td.fg||fg;borderColor=td.c||borderColor;}
+  }
+
+  el.innerHTML=`<div style="background:${bg};color:${fg};border:1.5px solid ${borderColor};
+    border-radius:4px;padding:5px 8px;font-size:10px;font-family:var(--mono);line-height:1.3;
+    box-shadow:0 1px 4px rgba(0,0,0,0.1);position:relative;">
+    ${eh(item.label.slice(0,80))}${item.label.length>80?'…':''}
+    <button onclick="sc2RemoveItem('${item.id}')" title="Remove"
+      style="position:absolute;top:-6px;right:-6px;background:var(--sur);border:1px solid var(--bor);
+      border-radius:50%;width:14px;height:14px;font-size:8px;cursor:pointer;color:var(--txt2);
+      display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
+  </div>`;
+
+  // Drag to reposition within canvas
+  el.addEventListener('mousedown',e=>{
+    if(e.target.tagName==='BUTTON')return;
+    e.preventDefault();
+    const canvas=document.getElementById('sc2-canvas');
+    const cr=canvas.getBoundingClientRect();
+    function onMove(ev){
+      const nx=ev.clientX-cr.left, ny=ev.clientY-cr.top;
+      el.style.left=nx+'px';el.style.top=ny+'px';
+      // Update item position
+      const qx2=nx<PAD+cw/2?0:1;
+      const qy2=ny<PAD+ch/2?0:1;
+      item.quadrant=qy2*2+qx2;
+      const ox=PAD+qx2*cw/2, oy=PAD+qy2*ch/2;
+      item.x=Math.max(0.02,Math.min(0.98,(nx-ox)/(cw/2)));
+      item.y=Math.max(0.02,Math.min(0.98,(ny-oy)/(ch/2)));
+    }
+    function onUp(){
+      document.removeEventListener('mousemove',onMove);
+      document.removeEventListener('mouseup',onUp);
+      sc2Save();
+    }
+    document.addEventListener('mousemove',onMove);
+    document.addEventListener('mouseup',onUp);
+  });
+
+  inner.appendChild(el);
+}
+
+function sc2AddItem(data,quadrant,rx,ry){
+  const fw=sc2Active();if(!fw)return;
+  let label='',type='signal',ref=undefined;
+  if(data.type==='sc2-signal'){
+    const r=ROWS[data.idx];if(!r)return;
+    label=r.content.replace(/https?:\/\/\S+/g,'').trim().slice(0,120);
+    type='signal';ref=data.idx;
+  } else if(data.type==='sc2-tag'){
+    label=data.tag;type='tag';
+  } else if(data.type==='sc2-custom'){
+    label=data.text;type='custom';
+  }
+  // Avoid duplicates
+  if(type==='signal'&&fw.items.some(i=>i.type==='signal'&&i.ref===ref))return;
+  const item={id:'sci_'+Date.now(),type,ref,label,quadrant,x:rx,y:ry};
+  fw.items.push(item);
+  sc2Render();sc2Save();
+}
+
+function sc2RemoveItem(itemId){
+  const fw=sc2Active();if(!fw)return;
+  fw.items=fw.items.filter(i=>i.id!==itemId);
+  sc2Render();sc2Save();
+}
+
+function sc2RenderPool(){
+  const pool=document.getElementById('sc2-pool');if(!pool)return;
+  pool.innerHTML='';
+  const q=(document.getElementById('sc2-search')?.value||'').toLowerCase();
+
+  // Signal items
+  const visibleRows=ROWS.filter(r=>{
+    if(!q)return true;
+    return(r.content+' '+r.tags+' '+r.theme).toLowerCase().includes(q);
+  }).slice(0,80);
+
+  visibleRows.forEach(r=>{
+    const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};
+    const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
+    const el=document.createElement('div');
+    el.style.cssText='padding:6px 8px;background:var(--sur2);border:1px solid var(--bor);border-left:3px solid '+td.c+';border-radius:4px;cursor:grab;margin-bottom:4px;';
+    el.innerHTML=`<div style="font-size:10px;line-height:1.4;color:var(--txt);">${eh(txt.slice(0,90))}${txt.length>90?'…':''}</div>`;
+    el.draggable=true;
+    el.addEventListener('dragstart',e=>{
+      e.dataTransfer.setData('text/plain',JSON.stringify({type:'sc2-signal',idx:r.idx}));
+      el.style.opacity='0.4';
+    });
+    el.addEventListener('dragend',()=>{el.style.opacity='1';});
+    pool.appendChild(el);
+  });
+
+  // Tag items (from enriched tags)
+  if(!q){
+    const tagSection=document.createElement('div');
+    tagSection.style.cssText='margin-top:10px;border-top:1px solid var(--bor);padding-top:8px;';
+    tagSection.innerHTML='<div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;color:var(--txt3);margin-bottom:6px;letter-spacing:.06em;">Tags</div>';
+    const tagSet=new Set();
+    ROWS.forEach(r=>(r.tagList||[]).forEach(t=>{if(t&&t.length>2)tagSet.add(t);}));
+    [...tagSet].slice(0,30).forEach(tag=>{
+      const el=document.createElement('div');
+      el.style.cssText='display:inline-block;margin:2px;padding:3px 8px;background:#EDE9F7;color:#3A3070;border:1px solid #C5BAE8;border-radius:10px;font-family:var(--mono);font-size:9px;cursor:grab;';
+      el.textContent=tag;el.draggable=true;
+      el.addEventListener('dragstart',e=>{
+        e.dataTransfer.setData('text/plain',JSON.stringify({type:'sc2-tag',tag}));
+        el.style.opacity='0.4';
+      });
+      el.addEventListener('dragend',()=>{el.style.opacity='1';});
+      tagSection.appendChild(el);
+    });
+    pool.appendChild(tagSection);
+  }
+
+  // Custom items already added to pool
+  if(sc2CustomItems.length){
+    const custSection=document.createElement('div');
+    custSection.style.cssText='margin-top:10px;border-top:1px solid var(--bor);padding-top:8px;';
+    custSection.innerHTML='<div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;color:var(--txt3);margin-bottom:6px;letter-spacing:.06em;">Custom notes</div>';
+    sc2CustomItems.forEach((item,i)=>{
+      const el=document.createElement('div');
+      el.style.cssText='padding:5px 8px;background:#FBF0DE;border:1px solid #E5D4B0;border-radius:4px;font-size:10px;cursor:grab;margin-bottom:4px;color:#7A5009;position:relative;';
+      el.innerHTML=`${eh(item.slice(0,80))}${item.length>80?'…':''}
+        <button onclick="sc2RemoveCustom(${i})" style="position:absolute;top:2px;right:4px;background:none;border:none;cursor:pointer;font-size:9px;color:#B8760F;">✕</button>`;
+      el.draggable=true;
+      el.addEventListener('dragstart',e=>{
+        e.dataTransfer.setData('text/plain',JSON.stringify({type:'sc2-custom',text:item}));
+        el.style.opacity='0.4';
+      });
+      el.addEventListener('dragend',()=>{el.style.opacity='1';});
+      custSection.appendChild(el);
+    });
+    pool.appendChild(custSection);
+  }
+}
+
+function sc2FilterPool(q){sc2RenderPool();}
+
+function sc2AddCustom(){
+  const ta=document.getElementById('sc2-custom-text');
+  const txt=ta.value.trim();if(!txt)return;
+  sc2CustomItems.push(txt);ta.value='';
+  sc2RenderPool();
+}
+
+function sc2RemoveCustom(i){
+  sc2CustomItems.splice(i,1);sc2RenderPool();
+}
+
+function sc2CanvasDrop(e){
+  // Handled by quadrant drop zones — this is a fallback no-op
+  e.preventDefault();
+}
+
+function sc2Save(){
+  try{localStorage.setItem(SC2_KEY,JSON.stringify(sc2Frameworks));}catch(e){}
+}
+
+function sc2Export(){
+  if(!sc2Frameworks.length){alert('Nothing to export.');return;}
+  const json=JSON.stringify({exportedAt:new Date().toISOString(),frameworks:sc2Frameworks,customItems:sc2CustomItems},null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='weak-signal-scenarios-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();URL.revokeObjectURL(a.href);
+}
+
+function sc2ImportFile(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const parsed=JSON.parse(e.target.result);
+      const fws=parsed.frameworks;
+      if(!Array.isArray(fws))throw new Error('Invalid format');
+      const replace=sc2Frameworks.length>1||sc2Frameworks[0]?.items?.length
+        ?confirm('Replace existing frameworks? Cancel to merge.')
+        :true;
+      if(replace){sc2Frameworks=[];}
+      fws.forEach(fw=>sc2Frameworks.push(fw));
+      if(parsed.customItems)sc2CustomItems=[...sc2CustomItems,...parsed.customItems];
+      sc2ActiveId=sc2Frameworks[0].id;
+      sc2BuildSelect();sc2Render();sc2RenderPool();sc2Save();
+      alert('Imported '+fws.length+' framework'+(fws.length!==1?'s':'')+' successfully.');
+    }catch(err){alert('Could not read file: '+err.message);}
+    input.value='';
+  };
+  reader.readAsText(file);
+}
+
 // ── Network graph ────────────────────────────────────────────
 let netMode='theme', netAnim=null;
 function renderNet(mode){
