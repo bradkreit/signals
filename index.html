@@ -135,6 +135,9 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
 .cl-pool-item:hover{box-shadow:0 2px 8px rgba(0,0,0,0.1);}
 .cl-card:hover{box-shadow:0 2px 6px rgba(0,0,0,0.08);}
 #cl-canvas{background-image:radial-gradient(circle,var(--bor) 1px,transparent 1px);background-size:24px 24px;}
+/* Scenario shape tiles */
+.sc2-shape-tile{transition:box-shadow .12s,transform .12s;}
+.sc2-shape-tile:hover{box-shadow:0 2px 8px rgba(0,0,0,0.12);transform:translateY(-1px);}
 </style>
 </head>
 <body>
@@ -305,6 +308,7 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
         </select>
         <button class="rbtn" onclick="sc2Rename()">Rename</button>
         <button class="rbtn" onclick="sc2Delete()">Delete</button>
+        <button class="rbtn" onclick="sc2ClearItems()">Clear items</button>
         <button class="rbtn" onclick="sc2Export()">↑ Export</button>
         <button class="rbtn" onclick="document.getElementById('sc2-import-input').click()">↓ Import</button>
         <input type="file" id="sc2-import-input" accept=".json" style="display:none;" onchange="sc2ImportFile(this)">
@@ -327,25 +331,108 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
         <button class="rbtn" onclick="sc2SaveAxes()" style="margin-left:4px;">Apply axes</button>
       </div>
       <div style="display:grid;grid-template-columns:220px 1fr;gap:12px;align-items:start;">
-        <!-- Item pool -->
-        <div style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;padding:12px;max-height:760px;overflow-y:auto;">
-          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3);margin-bottom:8px;">Items</div>
-          <input type="text" id="sc2-search" placeholder="Filter signals…" oninput="sc2FilterPool(this.value)"
-            style="width:100%;font-family:var(--mono);font-size:11px;padding:5px 8px;border:1px solid var(--bor);border-radius:3px;background:var(--bg);color:var(--txt);outline:none;margin-bottom:6px;">
-          <!-- Custom item creator -->
-          <div style="margin-bottom:8px;border-bottom:1px solid var(--bor);padding-bottom:8px;">
-            <textarea id="sc2-custom-text" placeholder="Add a custom note or idea…"
-              style="width:100%;font-family:var(--sans);font-size:11px;padding:6px 8px;border:1px solid var(--bor);border-radius:3px;background:var(--bg);color:var(--txt);outline:none;resize:vertical;min-height:52px;"></textarea>
-            <button onclick="sc2AddCustom()" class="rbtn" style="width:100%;margin-top:4px;text-align:center;">+ Add to pool</button>
+        <!-- Sidebar: shape palette + signals + tags -->
+        <div style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;padding:12px;max-height:800px;overflow-y:auto;">
+
+          <!-- Shape palette -->
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3);margin-bottom:8px;">Drag onto canvas</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;">
+
+            <!-- Note (rectangle) -->
+            <div class="sc2-shape-tile" draggable="true"
+              ondragstart="sc2ShapeDragStart(event,'note')"
+              title="Note — drag to canvas, then type"
+              style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;
+                background:var(--sur2);border:1px solid var(--bor);border-radius:5px;cursor:grab;">
+              <div style="width:44px;height:28px;background:#E6EEF7;border:1.5px solid #2D5FA0;border-radius:3px;"></div>
+              <span style="font-family:var(--mono);font-size:9px;color:var(--txt2);">Note</span>
+            </div>
+
+            <!-- Driver (diamond) -->
+            <div class="sc2-shape-tile" draggable="true"
+              ondragstart="sc2ShapeDragStart(event,'driver')"
+              title="Driver — a key force shaping the future"
+              style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;
+                background:var(--sur2);border:1px solid var(--bor);border-radius:5px;cursor:grab;">
+              <svg width="44" height="28" viewBox="0 0 44 28">
+                <polygon points="22,2 42,14 22,26 2,14" fill="#FBF0DE" stroke="#B8760F" stroke-width="1.5"/>
+              </svg>
+              <span style="font-family:var(--mono);font-size:9px;color:var(--txt2);">Driver</span>
+            </div>
+
+            <!-- Question (rounded pill) -->
+            <div class="sc2-shape-tile" draggable="true"
+              ondragstart="sc2ShapeDragStart(event,'question')"
+              title="Open question — something you don't know yet"
+              style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;
+                background:var(--sur2);border:1px solid var(--bor);border-radius:5px;cursor:grab;">
+              <div style="width:44px;height:24px;background:#FBEAF0;border:1.5px solid #D4537E;border-radius:12px;display:flex;align-items:center;justify-content:center;">
+                <span style="font-size:11px;color:#D4537E;">?</span>
+              </div>
+              <span style="font-family:var(--mono);font-size:9px;color:var(--txt2);">Question</span>
+            </div>
+
+            <!-- Assumption (hexagon) -->
+            <div class="sc2-shape-tile" draggable="true"
+              ondragstart="sc2ShapeDragStart(event,'assumption')"
+              title="Assumption — what must be true for this scenario"
+              style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;
+                background:var(--sur2);border:1px solid var(--bor);border-radius:5px;cursor:grab;">
+              <svg width="44" height="28" viewBox="0 0 44 28">
+                <polygon points="14,2 30,2 42,14 30,26 14,26 2,14" fill="#E4F3F3" stroke="#1D8A8A" stroke-width="1.5"/>
+              </svg>
+              <span style="font-family:var(--mono);font-size:9px;color:var(--txt2);">Assumption</span>
+            </div>
+
+            <!-- Wildcard (lightning bolt star) -->
+            <div class="sc2-shape-tile" draggable="true"
+              ondragstart="sc2ShapeDragStart(event,'wildcard')"
+              title="Wild card — low probability, high impact"
+              style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;
+                background:var(--sur2);border:1px solid var(--bor);border-radius:5px;cursor:grab;">
+              <svg width="44" height="28" viewBox="0 0 44 28">
+                <polygon points="22,1 26,11 38,11 28,18 32,28 22,21 12,28 16,18 6,11 18,11" fill="#EDE9F7" stroke="#5B4FA0" stroke-width="1.5"/>
+              </svg>
+              <span style="font-family:var(--mono);font-size:9px;color:var(--txt2);">Wild card</span>
+            </div>
+
+            <!-- Implication (arrow tag) -->
+            <div class="sc2-shape-tile" draggable="true"
+              ondragstart="sc2ShapeDragStart(event,'implication')"
+              title="Implication — a consequence or so-what"
+              style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;
+                background:var(--sur2);border:1px solid var(--bor);border-radius:5px;cursor:grab;">
+              <svg width="44" height="24" viewBox="0 0 44 24">
+                <polygon points="2,4 34,4 42,12 34,20 2,20" fill="#E5F1EA" stroke="#2A7A52" stroke-width="1.5"/>
+              </svg>
+              <span style="font-family:var(--mono);font-size:9px;color:var(--txt2);">Implication</span>
+            </div>
+
           </div>
-          <div id="sc2-pool" style="display:flex;flex-direction:column;gap:5px;"></div>
+
+          <!-- Signal pool -->
+          <div style="border-top:1px solid var(--bor);padding-top:10px;margin-bottom:8px;">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--txt3);margin-bottom:6px;">Signals</div>
+            <input type="text" id="sc2-search" placeholder="Filter signals…" oninput="sc2FilterPool(this.value)"
+              style="width:100%;font-family:var(--mono);font-size:11px;padding:5px 8px;border:1px solid var(--bor);border-radius:3px;background:var(--bg);color:var(--txt);outline:none;margin-bottom:6px;">
+            <div id="sc2-pool" style="display:flex;flex-direction:column;gap:4px;"></div>
+          </div>
+
+          <!-- Tag pool -->
+          <div style="border-top:1px solid var(--bor);padding-top:10px;" id="sc2-tag-section">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--txt3);margin-bottom:6px;">Tags</div>
+            <div id="sc2-tag-pool" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+          </div>
+
         </div>
         <!-- 2x2 canvas -->
         <div style="position:relative;">
           <div id="sc2-canvas" style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;position:relative;overflow:hidden;" ondragover="event.preventDefault()" ondrop="sc2CanvasDrop(event)">
-            <!-- Quadrant grid drawn by JS -->
             <div id="sc2-inner" style="position:absolute;inset:0;"></div>
           </div>
+          <p style="font-family:var(--mono);font-size:10px;color:var(--txt3);margin-top:8px;">
+            Double-click any item on the canvas to edit its text · Click ✕ to remove
+          </p>
         </div>
       </div>
     </div>
@@ -1627,8 +1714,24 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 
 // ── 2x2 Scenario Framework ────────────────────────────────────
-const SC2_KEY='weaksig_scenarios_v1';
-let sc2Inited=false, sc2Frameworks=[], sc2ActiveId=null, sc2CustomItems=[];
+const SC2_KEY='weaksig_scenarios_v2';
+let sc2Inited=false, sc2Frameworks=[], sc2ActiveId=null;
+
+// Shape definitions — each has rendering instructions
+const SC2_SHAPES={
+  note:     {label:'Note',       bg:'#E6EEF7',fg:'#1B3E6B',border:'#2D5FA0',render:'rect'},
+  driver:   {label:'Driver',     bg:'#FBF0DE',fg:'#7A5009',border:'#B8760F',render:'diamond'},
+  question: {label:'Question',   bg:'#FBEAF0',fg:'#72243E',border:'#D4537E',render:'pill'},
+  assumption:{label:'Assumption',bg:'#E4F3F3',fg:'#115555',border:'#1D8A8A',render:'hex'},
+  wildcard: {label:'Wild card',  bg:'#EDE9F7',fg:'#3A3070',border:'#5B4FA0',render:'star'},
+  implication:{label:'Implication',bg:'#E5F1EA',fg:'#1A5C38',border:'#2A7A52',render:'arrow'},
+  signal:   {label:'Signal',     bg:'#F0EDE6',fg:'#1A1916',border:'#9C9890',render:'rect'},
+  tag:      {label:'Tag',        bg:'#EDE9F7',fg:'#3A3070',border:'#5B4FA0',render:'pill'},
+};
+
+function sc2ShapeDragStart(e,shapeType){
+  e.dataTransfer.setData('text/plain',JSON.stringify({type:'sc2-shape',shapeType}));
+}
 
 function sc2Init(){
   if(!sc2Inited){
@@ -1648,35 +1751,28 @@ function sc2Init(){
 
 function sc2CreateFramework(name,andSwitch=true){
   const fw={
-    id:'sc2_'+Date.now(),
-    name,
+    id:'sc2_'+Date.now(),name,
     xLo:'',xHi:'',yLo:'',yHi:'',
     quadrantNames:['Scenario A','Scenario B','Scenario C','Scenario D'],
-    items:[] // {id, type:'signal'|'tag'|'custom', ref, label, x, y (0-1 within quadrant), quadrant:0-3}
+    items:[]
   };
   sc2Frameworks.push(fw);
-  if(andSwitch){sc2ActiveId=fw.id;}
+  if(andSwitch)sc2ActiveId=fw.id;
   sc2BuildSelect();
   if(andSwitch)sc2Render();
-  sc2Save();
-  return fw;
+  sc2Save();return fw;
 }
 
 function sc2BuildSelect(){
-  const sel=document.getElementById('sc2-select');
-  if(!sel)return;
+  const sel=document.getElementById('sc2-select');if(!sel)return;
   sel.innerHTML=sc2Frameworks.map(fw=>`<option value="${fw.id}"${fw.id===sc2ActiveId?' selected':''}>${eh(fw.name)}</option>`).join('');
 }
 
-function sc2Switch(id){
-  sc2ActiveId=id;
-  sc2Render();
-}
+function sc2Switch(id){sc2ActiveId=id;sc2Render();}
 
 function sc2New(){
   const name=prompt('Framework name:','New scenario framework');
-  if(!name)return;
-  sc2CreateFramework(name,true);
+  if(!name)return;sc2CreateFramework(name,true);
 }
 
 function sc2Rename(){
@@ -1693,6 +1789,12 @@ function sc2Delete(){
   sc2BuildSelect();sc2Render();sc2Save();
 }
 
+function sc2ClearItems(){
+  const fw=sc2Active();if(!fw)return;
+  if(!confirm('Remove all items from this framework?'))return;
+  fw.items=[];sc2Render();sc2Save();
+}
+
 function sc2Active(){return sc2Frameworks.find(f=>f.id===sc2ActiveId);}
 
 function sc2SaveAxes(){
@@ -1706,7 +1808,6 @@ function sc2SaveAxes(){
 
 function sc2Render(){
   const fw=sc2Active();if(!fw)return;
-  // Populate axis inputs
   document.getElementById('sc2-x-lo').value=fw.xLo||'';
   document.getElementById('sc2-x-hi').value=fw.xHi||'';
   document.getElementById('sc2-y-lo').value=fw.yLo||'';
@@ -1714,84 +1815,55 @@ function sc2Render(){
 
   const canvas=document.getElementById('sc2-canvas');
   const inner=document.getElementById('sc2-inner');
-
-  // Canvas size — use available width
   const W=canvas.parentElement.offsetWidth||700;
   const H=Math.round(W*0.72);
   canvas.style.height=H+'px';
-
-  const PAD=48; // space for axis labels
-  const cw=W-PAD*2, ch=H-PAD*2; // usable inner area
-
+  const PAD=48,cw=W-PAD*2,ch=H-PAD*2;
   inner.innerHTML='';
 
-  // Draw SVG grid + axis labels
+  // SVG grid
   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
   svg.setAttribute('width',W);svg.setAttribute('height',H);
   svg.style.cssText='position:absolute;inset:0;pointer-events:none;';
-
-  // Quadrant fill colors
   const qColors=['#EEF5FB','#EDF7F2','#FBF5EE','#F5EEEE'];
   [[0,0],[1,0],[0,1],[1,1]].forEach(([qx,qy],i)=>{
     const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');
     rect.setAttribute('x',PAD+qx*cw/2);rect.setAttribute('y',PAD+qy*ch/2);
     rect.setAttribute('width',cw/2);rect.setAttribute('height',ch/2);
-    rect.setAttribute('fill',qColors[i]);rect.setAttribute('rx','0');
-    svg.appendChild(rect);
+    rect.setAttribute('fill',qColors[i]);svg.appendChild(rect);
   });
-
-  // Grid lines
   const addLine=(x1,y1,x2,y2,dash=false)=>{
     const l=document.createElementNS('http://www.w3.org/2000/svg','line');
     l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);
     l.setAttribute('stroke','#D0CBC0');l.setAttribute('stroke-width','1.5');
-    if(dash)l.setAttribute('stroke-dasharray','4,3');
-    svg.appendChild(l);
+    if(dash)l.setAttribute('stroke-dasharray','4,3');svg.appendChild(l);
   };
   addLine(PAD,PAD,PAD,PAD+ch);addLine(PAD,PAD+ch,PAD+cw,PAD+ch);
   addLine(PAD+cw,PAD,PAD+cw,PAD+ch);addLine(PAD,PAD,PAD+cw,PAD);
   addLine(PAD+cw/2,PAD,PAD+cw/2,PAD+ch,true);
   addLine(PAD,PAD+ch/2,PAD+cw,PAD+ch/2,true);
-
-  // Axis arrows
-  const addArrow=(x1,y1,x2,y2)=>{
-    const l=document.createElementNS('http://www.w3.org/2000/svg','line');
-    l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);
-    l.setAttribute('stroke','#9C9890');l.setAttribute('stroke-width','1');
-    svg.appendChild(l);
-  };
-
-  // Axis label helper
-  const addText=(txt,x,y,anchor='middle',size=10,color='#9C9890',bold=false)=>{
+  const addText=(txt,x,y,anchor='middle',size=10,color='#9C9890')=>{
     const t=document.createElementNS('http://www.w3.org/2000/svg','text');
     t.setAttribute('x',x);t.setAttribute('y',y);t.setAttribute('text-anchor',anchor);
     t.setAttribute('font-size',size);t.setAttribute('fill',color);
-    t.setAttribute('font-family','DM Mono, monospace');
-    if(bold)t.setAttribute('font-weight','600');
-    t.textContent=txt;svg.appendChild(t);
+    t.setAttribute('font-family','DM Mono, monospace');t.textContent=txt;svg.appendChild(t);
   };
-
   if(fw.xLo)addText(fw.xLo,PAD+8,PAD+ch+14,'start',10,'#6B6760');
   if(fw.xHi)addText(fw.xHi,PAD+cw-4,PAD+ch+14,'end',10,'#6B6760');
   if(fw.yLo)addText(fw.yLo,PAD-6,PAD+ch-4,'end',10,'#6B6760');
   if(fw.yHi)addText(fw.yHi,PAD-6,PAD+8,'end',10,'#6B6760');
-
-  // X axis label (center bottom)
   const xLabel=fw.xLo&&fw.xHi?fw.xLo+' → '+fw.xHi:'X axis';
   addText(xLabel,PAD+cw/2,H-4,'middle',10,'#9C9890');
-  // Y axis label (rotated)
-  const yLabel=fw.yLo&&fw.yHi?fw.yLo+' → '+fw.yHi:'Y axis';
   const yt=document.createElementNS('http://www.w3.org/2000/svg','text');
-  yt.setAttribute('x',10);yt.setAttribute('y',PAD+ch/2);
-  yt.setAttribute('text-anchor','middle');yt.setAttribute('font-size',10);
-  yt.setAttribute('fill','#9C9890');yt.setAttribute('font-family','DM Mono, monospace');
+  yt.setAttribute('x',10);yt.setAttribute('y',PAD+ch/2);yt.setAttribute('text-anchor','middle');
+  yt.setAttribute('font-size',10);yt.setAttribute('fill','#9C9890');
+  yt.setAttribute('font-family','DM Mono, monospace');
   yt.setAttribute('transform',`rotate(-90,10,${PAD+ch/2})`);
-  yt.textContent=yLabel;svg.appendChild(yt);
-
+  yt.textContent=fw.yLo&&fw.yHi?fw.yLo+' → '+fw.yHi:'Y axis';
+  svg.appendChild(yt);
   inner.appendChild(svg);
 
-  // Quadrant name labels — editable overlays
-  // Quadrants: 0=top-left, 1=top-right, 2=bottom-left, 3=bottom-right
+  // Quadrant name labels — double-click to rename
   const qPositions=[
     {x:PAD+4,y:PAD+4,ax:'left',ay:'top'},
     {x:PAD+cw-4,y:PAD+4,ax:'right',ay:'top'},
@@ -1803,30 +1875,28 @@ function sc2Render(){
     const lbl=document.createElement('div');
     lbl.style.cssText=`position:absolute;font-family:var(--serif);font-size:13px;font-weight:700;
       color:${qColors2[qi]};opacity:0.7;cursor:text;max-width:${cw/2-16}px;word-break:break-word;
-      ${qp.ay==='top'?'top:'+(qp.y)+'px':'bottom:'+(H-qp.y)+'px'};
-      ${qp.ax==='left'?'left:'+(qp.x)+'px':'right:'+(W-qp.x)+'px'};`;
-    lbl.title='Double-click to rename scenario';
+      ${qp.ay==='top'?'top:'+qp.y+'px':'bottom:'+(H-qp.y)+'px'};
+      ${qp.ax==='left'?'left:'+qp.x+'px':'right:'+(W-qp.x)+'px'};`;
+    lbl.title='Double-click to rename';
     lbl.textContent=fw.quadrantNames[qi]||'Scenario '+'ABCD'[qi];
     lbl.addEventListener('dblclick',()=>{
       const inp=document.createElement('input');
       inp.value=lbl.textContent;
       inp.style.cssText=`font-family:var(--serif);font-size:13px;font-weight:700;color:${qColors2[qi]};
-        border:1px solid var(--blue);border-radius:2px;padding:1px 4px;width:140px;outline:none;background:rgba(255,255,255,0.9);`;
+        border:1px solid var(--blue);border-radius:2px;padding:1px 4px;width:140px;outline:none;
+        background:rgba(255,255,255,0.9);`;
       lbl.replaceWith(inp);inp.focus();inp.select();
-      const done=()=>{
-        fw.quadrantNames[qi]=inp.value.trim()||fw.quadrantNames[qi];
-        sc2Render();sc2Save();
-      };
+      const done=()=>{fw.quadrantNames[qi]=inp.value.trim()||fw.quadrantNames[qi];sc2Render();sc2Save();};
       inp.addEventListener('blur',done);
       inp.addEventListener('keydown',e=>{if(e.key==='Enter')inp.blur();if(e.key==='Escape'){inp.value=fw.quadrantNames[qi];inp.blur();}});
     });
     inner.appendChild(lbl);
   });
 
-  // Render items already placed on the framework
+  // Render placed items
   fw.items.forEach(item=>sc2RenderItem(item,fw,PAD,cw,ch,H,W,inner));
 
-  // Drop zone overlay for the four quadrants
+  // Drop zones for each quadrant
   [[0,0,0],[1,0,1],[0,1,2],[1,1,3]].forEach(([qx,qy,qi])=>{
     const dz=document.createElement('div');
     dz.style.cssText=`position:absolute;left:${PAD+qx*cw/2}px;top:${PAD+qy*ch/2}px;
@@ -1836,68 +1906,119 @@ function sc2Render(){
     dz.addEventListener('drop',e=>{
       e.preventDefault();dz.style.background='';
       const rect=dz.getBoundingClientRect();
-      const rx=(e.clientX-rect.left)/rect.width;
-      const ry=(e.clientY-rect.top)/rect.height;
+      const rx=Math.max(0.05,Math.min(0.95,(e.clientX-rect.left)/rect.width));
+      const ry=Math.max(0.05,Math.min(0.95,(e.clientY-rect.top)/rect.height));
       try{
         const data=JSON.parse(e.dataTransfer.getData('text/plain'));
-        sc2AddItem(data,qi,Math.max(0.05,Math.min(0.95,rx)),Math.max(0.05,Math.min(0.95,ry)));
+        sc2AddItem(data,qi,rx,ry);
       }catch(err){}
     });
     inner.appendChild(dz);
   });
 }
 
+// Shape rendering — returns inner HTML for a given shape type
+function sc2ShapeHTML(shapeType,label,itemId){
+  const s=SC2_SHAPES[shapeType]||SC2_SHAPES.note;
+  const txt=eh(label.slice(0,70))+(label.length>70?'…':'');
+  const rmv=`<button onclick="sc2RemoveItem('${itemId}')" title="Remove"
+    style="position:absolute;top:-7px;right:-7px;background:var(--sur);border:1px solid var(--bor);
+    border-radius:50%;width:15px;height:15px;font-size:8px;cursor:pointer;color:var(--txt2);
+    display:flex;align-items:center;justify-content:center;z-index:5;line-height:1;">✕</button>`;
+
+  const inner=`<div style="font-size:10px;font-family:var(--mono);line-height:1.3;color:${s.fg};
+    text-align:center;padding:4px 6px;word-break:break-word;">${txt}</div>`;
+
+  if(s.render==='rect'){
+    return `<div style="position:relative;background:${s.bg};border:1.5px solid ${s.border};
+      border-radius:4px;min-width:80px;max-width:130px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+      ${inner}${rmv}</div>`;
+  }
+  if(s.render==='pill'){
+    return `<div style="position:relative;background:${s.bg};border:1.5px solid ${s.border};
+      border-radius:20px;min-width:70px;max-width:120px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+      ${inner}${rmv}</div>`;
+  }
+  if(s.render==='diamond'){
+    return `<div style="position:relative;width:90px;height:90px;">
+      <svg width="90" height="90" style="position:absolute;inset:0;">
+        <polygon points="45,4 86,45 45,86 4,45" fill="${s.bg}" stroke="${s.border}" stroke-width="1.5"/>
+      </svg>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;">
+        <div style="font-size:9px;font-family:var(--mono);color:${s.fg};text-align:center;line-height:1.3;word-break:break-word;">${txt}</div>
+      </div>
+      ${rmv}</div>`;
+  }
+  if(s.render==='hex'){
+    return `<div style="position:relative;width:90px;height:72px;">
+      <svg width="90" height="72" style="position:absolute;inset:0;">
+        <polygon points="24,4 66,4 88,36 66,68 24,68 2,36" fill="${s.bg}" stroke="${s.border}" stroke-width="1.5"/>
+      </svg>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:16px 12px;">
+        <div style="font-size:9px;font-family:var(--mono);color:${s.fg};text-align:center;line-height:1.3;word-break:break-word;">${txt}</div>
+      </div>
+      ${rmv}</div>`;
+  }
+  if(s.render==='star'){
+    return `<div style="position:relative;width:80px;height:80px;">
+      <svg width="80" height="80" style="position:absolute;inset:0;">
+        <polygon points="40,2 48,28 74,28 53,44 61,70 40,54 19,70 27,44 6,28 32,28" fill="${s.bg}" stroke="${s.border}" stroke-width="1.5"/>
+      </svg>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;">
+        <div style="font-size:9px;font-family:var(--mono);color:${s.fg};text-align:center;line-height:1.2;word-break:break-word;">${txt}</div>
+      </div>
+      ${rmv}</div>`;
+  }
+  if(s.render==='arrow'){
+    return `<div style="position:relative;width:110px;height:44px;">
+      <svg width="110" height="44" style="position:absolute;inset:0;">
+        <polygon points="2,8 82,8 108,22 82,36 2,36" fill="${s.bg}" stroke="${s.border}" stroke-width="1.5"/>
+      </svg>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:6px 24px 6px 10px;">
+        <div style="font-size:9px;font-family:var(--mono);color:${s.fg};text-align:center;line-height:1.2;word-break:break-word;">${txt}</div>
+      </div>
+      ${rmv}</div>`;
+  }
+  return `<div style="position:relative;">${inner}${rmv}</div>`;
+}
+
 function sc2RenderItem(item,fw,PAD,cw,ch,H,W,inner){
-  // Map quadrant + relative position to absolute canvas position
-  const qx=item.quadrant%2, qy=Math.floor(item.quadrant/2);
-  // y is inverted (0=top in screen, 0=bottom in scenario space)
+  const qx=item.quadrant%2,qy=Math.floor(item.quadrant/2);
   const ax=PAD+qx*cw/2+item.x*cw/2;
   const ay=PAD+qy*ch/2+item.y*ch/2;
 
   const el=document.createElement('div');
   el.style.cssText=`position:absolute;left:${ax}px;top:${ay}px;transform:translate(-50%,-50%);
-    z-index:20;max-width:140px;cursor:move;`;
+    z-index:20;cursor:move;user-select:none;`;
 
-  let bg='#E6EEF7',fg='#1B3E6B',borderColor='#2D5FA0';
-  if(item.type==='tag'){bg='#EDE9F7';fg='#3A3070';borderColor='#5B4FA0';}
-  if(item.type==='custom'){bg='#FBF0DE';fg='#7A5009';borderColor='#B8760F';}
-  if(item.type==='signal'&&item.ref!==undefined){
-    const r=ROWS[item.ref];
-    if(r){const td=TM[r.theme]||{};bg=td.bg||bg;fg=td.fg||fg;borderColor=td.c||borderColor;}
-  }
+  const shapeType=item.shapeType||item.type||'note';
+  el.innerHTML=sc2ShapeHTML(shapeType,item.label,item.id);
 
-  el.innerHTML=`<div style="background:${bg};color:${fg};border:1.5px solid ${borderColor};
-    border-radius:4px;padding:5px 8px;font-size:10px;font-family:var(--mono);line-height:1.3;
-    box-shadow:0 1px 4px rgba(0,0,0,0.1);position:relative;">
-    ${eh(item.label.slice(0,80))}${item.label.length>80?'…':''}
-    <button onclick="sc2RemoveItem('${item.id}')" title="Remove"
-      style="position:absolute;top:-6px;right:-6px;background:var(--sur);border:1px solid var(--bor);
-      border-radius:50%;width:14px;height:14px;font-size:8px;cursor:pointer;color:var(--txt2);
-      display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
-  </div>`;
+  // Double-click to edit label inline
+  el.addEventListener('dblclick',e=>{
+    if(e.target.tagName==='BUTTON')return;
+    const newLabel=prompt('Edit text:',item.label);
+    if(newLabel!==null&&newLabel.trim()){
+      item.label=newLabel.trim();
+      sc2Render();sc2Save();
+    }
+  });
 
-  // Drag to reposition within canvas
+  // Drag to reposition
   el.addEventListener('mousedown',e=>{
     if(e.target.tagName==='BUTTON')return;
     e.preventDefault();
     const canvas=document.getElementById('sc2-canvas');
     const cr=canvas.getBoundingClientRect();
     function onMove(ev){
-      const nx=ev.clientX-cr.left, ny=ev.clientY-cr.top;
+      const nx=ev.clientX-cr.left,ny=ev.clientY-cr.top;
       el.style.left=nx+'px';el.style.top=ny+'px';
-      // Update item position
-      const qx2=nx<PAD+cw/2?0:1;
-      const qy2=ny<PAD+ch/2?0:1;
+      const qx2=nx<PAD+cw/2?0:1,qy2=ny<PAD+ch/2?0:1;
       item.quadrant=qy2*2+qx2;
-      const ox=PAD+qx2*cw/2, oy=PAD+qy2*ch/2;
-      item.x=Math.max(0.02,Math.min(0.98,(nx-ox)/(cw/2)));
-      item.y=Math.max(0.02,Math.min(0.98,(ny-oy)/(ch/2)));
+      item.x=Math.max(0.02,Math.min(0.98,(nx-PAD-qx2*cw/2)/(cw/2)));
+      item.y=Math.max(0.02,Math.min(0.98,(ny-PAD-qy2*ch/2)/(ch/2)));
     }
-    function onUp(){
-      document.removeEventListener('mousemove',onMove);
-      document.removeEventListener('mouseup',onUp);
-      sc2Save();
-    }
+    function onUp(){document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);sc2Save();}
     document.addEventListener('mousemove',onMove);
     document.addEventListener('mouseup',onUp);
   });
@@ -1907,19 +2028,24 @@ function sc2RenderItem(item,fw,PAD,cw,ch,H,W,inner){
 
 function sc2AddItem(data,quadrant,rx,ry){
   const fw=sc2Active();if(!fw)return;
-  let label='',type='signal',ref=undefined;
-  if(data.type==='sc2-signal'){
+  let item=null;
+
+  if(data.type==='sc2-shape'){
+    // Brand new shape from palette — prompt for label immediately
+    const s=SC2_SHAPES[data.shapeType]||SC2_SHAPES.note;
+    const label=prompt(`Label for ${s.label}:`,'');
+    if(!label||!label.trim())return;
+    item={id:'sci_'+Date.now(),shapeType:data.shapeType,type:data.shapeType,label:label.trim(),quadrant,x:rx,y:ry};
+  } else if(data.type==='sc2-signal'){
     const r=ROWS[data.idx];if(!r)return;
-    label=r.content.replace(/https?:\/\/\S+/g,'').trim().slice(0,120);
-    type='signal';ref=data.idx;
+    if(fw.items.some(i=>i.type==='signal'&&i.ref===data.idx))return;
+    const label=r.content.replace(/https?:\/\/\S+/g,'').trim().slice(0,120);
+    item={id:'sci_'+Date.now(),shapeType:'signal',type:'signal',ref:data.idx,label,quadrant,x:rx,y:ry};
   } else if(data.type==='sc2-tag'){
-    label=data.tag;type='tag';
-  } else if(data.type==='sc2-custom'){
-    label=data.text;type='custom';
+    item={id:'sci_'+Date.now(),shapeType:'tag',type:'tag',label:data.tag,quadrant,x:rx,y:ry};
   }
-  // Avoid duplicates
-  if(type==='signal'&&fw.items.some(i=>i.type==='signal'&&i.ref===ref))return;
-  const item={id:'sci_'+Date.now(),type,ref,label,quadrant,x:rx,y:ry};
+
+  if(!item)return;
   fw.items.push(item);
   sc2Render();sc2Save();
 }
@@ -1934,18 +2060,15 @@ function sc2RenderPool(){
   const pool=document.getElementById('sc2-pool');if(!pool)return;
   pool.innerHTML='';
   const q=(document.getElementById('sc2-search')?.value||'').toLowerCase();
-
-  // Signal items
   const visibleRows=ROWS.filter(r=>{
     if(!q)return true;
     return(r.content+' '+r.tags+' '+r.theme).toLowerCase().includes(q);
   }).slice(0,80);
-
   visibleRows.forEach(r=>{
     const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};
     const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
     const el=document.createElement('div');
-    el.style.cssText='padding:6px 8px;background:var(--sur2);border:1px solid var(--bor);border-left:3px solid '+td.c+';border-radius:4px;cursor:grab;margin-bottom:4px;';
+    el.style.cssText='padding:5px 8px;background:var(--sur2);border:1px solid var(--bor);border-left:3px solid '+td.c+';border-radius:4px;cursor:grab;';
     el.innerHTML=`<div style="font-size:10px;line-height:1.4;color:var(--txt);">${eh(txt.slice(0,90))}${txt.length>90?'…':''}</div>`;
     el.draggable=true;
     el.addEventListener('dragstart',e=>{
@@ -1956,66 +2079,29 @@ function sc2RenderPool(){
     pool.appendChild(el);
   });
 
-  // Tag items (from enriched tags)
-  if(!q){
-    const tagSection=document.createElement('div');
-    tagSection.style.cssText='margin-top:10px;border-top:1px solid var(--bor);padding-top:8px;';
-    tagSection.innerHTML='<div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;color:var(--txt3);margin-bottom:6px;letter-spacing:.06em;">Tags</div>';
+  // Tags in their own section
+  const tagPool=document.getElementById('sc2-tag-pool');
+  if(tagPool){
+    tagPool.innerHTML='';
     const tagSet=new Set();
     ROWS.forEach(r=>(r.tagList||[]).forEach(t=>{if(t&&t.length>2)tagSet.add(t);}));
-    [...tagSet].slice(0,30).forEach(tag=>{
-      const el=document.createElement('div');
-      el.style.cssText='display:inline-block;margin:2px;padding:3px 8px;background:#EDE9F7;color:#3A3070;border:1px solid #C5BAE8;border-radius:10px;font-family:var(--mono);font-size:9px;cursor:grab;';
+    if(!q)[...tagSet].slice(0,40).forEach(tag=>{
+      const el=document.createElement('span');
+      el.style.cssText='display:inline-block;padding:3px 8px;background:#EDE9F7;color:#3A3070;border:1px solid #C5BAE8;border-radius:10px;font-family:var(--mono);font-size:9px;cursor:grab;margin:2px;';
       el.textContent=tag;el.draggable=true;
       el.addEventListener('dragstart',e=>{
         e.dataTransfer.setData('text/plain',JSON.stringify({type:'sc2-tag',tag}));
         el.style.opacity='0.4';
       });
       el.addEventListener('dragend',()=>{el.style.opacity='1';});
-      tagSection.appendChild(el);
+      tagPool.appendChild(el);
     });
-    pool.appendChild(tagSection);
-  }
-
-  // Custom items already added to pool
-  if(sc2CustomItems.length){
-    const custSection=document.createElement('div');
-    custSection.style.cssText='margin-top:10px;border-top:1px solid var(--bor);padding-top:8px;';
-    custSection.innerHTML='<div style="font-family:var(--mono);font-size:9px;text-transform:uppercase;color:var(--txt3);margin-bottom:6px;letter-spacing:.06em;">Custom notes</div>';
-    sc2CustomItems.forEach((item,i)=>{
-      const el=document.createElement('div');
-      el.style.cssText='padding:5px 8px;background:#FBF0DE;border:1px solid #E5D4B0;border-radius:4px;font-size:10px;cursor:grab;margin-bottom:4px;color:#7A5009;position:relative;';
-      el.innerHTML=`${eh(item.slice(0,80))}${item.length>80?'…':''}
-        <button onclick="sc2RemoveCustom(${i})" style="position:absolute;top:2px;right:4px;background:none;border:none;cursor:pointer;font-size:9px;color:#B8760F;">✕</button>`;
-      el.draggable=true;
-      el.addEventListener('dragstart',e=>{
-        e.dataTransfer.setData('text/plain',JSON.stringify({type:'sc2-custom',text:item}));
-        el.style.opacity='0.4';
-      });
-      el.addEventListener('dragend',()=>{el.style.opacity='1';});
-      custSection.appendChild(el);
-    });
-    pool.appendChild(custSection);
   }
 }
 
 function sc2FilterPool(q){sc2RenderPool();}
 
-function sc2AddCustom(){
-  const ta=document.getElementById('sc2-custom-text');
-  const txt=ta.value.trim();if(!txt)return;
-  sc2CustomItems.push(txt);ta.value='';
-  sc2RenderPool();
-}
-
-function sc2RemoveCustom(i){
-  sc2CustomItems.splice(i,1);sc2RenderPool();
-}
-
-function sc2CanvasDrop(e){
-  // Handled by quadrant drop zones — this is a fallback no-op
-  e.preventDefault();
-}
+function sc2CanvasDrop(e){e.preventDefault();}
 
 function sc2Save(){
   try{localStorage.setItem(SC2_KEY,JSON.stringify(sc2Frameworks));}catch(e){}
@@ -2023,8 +2109,7 @@ function sc2Save(){
 
 function sc2Export(){
   if(!sc2Frameworks.length){alert('Nothing to export.');return;}
-  const json=JSON.stringify({exportedAt:new Date().toISOString(),frameworks:sc2Frameworks,customItems:sc2CustomItems},null,2);
-  const blob=new Blob([json],{type:'application/json'});
+  const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),frameworks:sc2Frameworks},null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download='weak-signal-scenarios-'+new Date().toISOString().slice(0,10)+'.json';
   a.click();URL.revokeObjectURL(a.href);
@@ -2041,9 +2126,8 @@ function sc2ImportFile(input){
       const replace=sc2Frameworks.length>1||sc2Frameworks[0]?.items?.length
         ?confirm('Replace existing frameworks? Cancel to merge.')
         :true;
-      if(replace){sc2Frameworks=[];}
+      if(replace)sc2Frameworks=[];
       fws.forEach(fw=>sc2Frameworks.push(fw));
-      if(parsed.customItems)sc2CustomItems=[...sc2CustomItems,...parsed.customItems];
       sc2ActiveId=sc2Frameworks[0].id;
       sc2BuildSelect();sc2Render();sc2RenderPool();sc2Save();
       alert('Imported '+fws.length+' framework'+(fws.length!==1?'s':'')+' successfully.');
@@ -2052,6 +2136,7 @@ function sc2ImportFile(input){
   };
   reader.readAsText(file);
 }
+
 
 // ── Network graph ────────────────────────────────────────────
 let netMode='theme', netAnim=null;
