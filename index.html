@@ -197,7 +197,9 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
           <div id="ecloud"><p style="font-family:var(--mono);font-size:11px;color:var(--txt3);">Entities appear here once AI enrichment runs on your signals.</p></div>
         </div>
         <div class="card">
-          <div class="ctitle">Recent signals — last 14 days <span class="chint">click for detail</span></div>
+          <div class="ctitle">Recent signals — last 14 days <span class="chint">click for detail</span>
+            <button onclick="openChronFeed()" style="font-family:var(--mono);font-size:10px;color:var(--blue);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;">View all →</button>
+          </div>
           <div class="slist" id="rsigs"></div>
         </div>
       </div>
@@ -924,14 +926,13 @@ function render(){
     ecloudEl.innerHTML='<p style="font-family:var(--mono);font-size:11px;color:var(--txt3);">Entities appear here once AI enrichment runs on your signals.</p>';
   }
 
-  // Recent signals — with clickable tags
+  // Recent signals — last 14 days, up to 8 shown inline
   const rrows=rows.filter(r=>r.date>=tw).slice(0,8);window._rr=rrows;
   document.getElementById('rsigs').innerHTML=rrows.map((r,i)=>{
     const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};
     const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
     const um=r.content.match(/https?:\/\/\S+/),aurl=um?um[0]:null;
     const linkUrl=aurl||r.url||null;
-    // Build clickable tag chips
     const tagChips=r.tagList.slice(0,5).map(t=>{
       const safe=t.replace(/'/g,"\\'");
       return `<span class="smeta-tag" style="background:${td.bg};color:${td.fg};" onclick="event.stopPropagation();filterByTag('${safe}')">${eh(t)}</span>`;
@@ -1069,6 +1070,105 @@ function filterByEntity(entity){
   const key=entity.toLowerCase();
   const matched=ROWS.filter(r=>r.entities&&r.entities.toLowerCase().split(',').some(e=>e.trim()===key));
   openD('Entity: '+entity, matched.length+' signal'+(matched.length!==1?'s':''), matched);
+}
+
+// Full chronological feed — opened from "View all →"
+let chromPage=0;
+const CHRON_PAGE_SIZE=40;
+
+function openChronFeed(){
+  chromPage=0;
+  document.getElementById('dtitle').textContent='All signals';
+  document.getElementById('dsub').textContent=ROWS.length+' total — newest first';
+  document.getElementById('dfilt').style.display='none';
+  document.getElementById('dcnt').textContent='';
+  renderChronPage();
+  document.getElementById('ov').classList.add('open');
+  document.getElementById('drw').classList.add('open');
+}
+
+function renderChronPage(){
+  const start=chromPage*CHRON_PAGE_SIZE;
+  const slice=ROWS.slice(start,start+CHRON_PAGE_SIZE);
+  const bEl=document.getElementById('dbody');
+
+  // Group by date for easy scanning
+  const groups={};
+  slice.forEach(r=>{
+    const dk=r.date.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+    if(!groups[dk])groups[dk]=[];
+    groups[dk].push(r);
+  });
+
+  let html='';
+  // Date group headers
+  Object.entries(groups).forEach(([date,grpRows])=>{
+    html+=`<div style="font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;
+      color:var(--txt3);padding:10px 0 6px;border-bottom:1px solid var(--bor);margin-bottom:8px;
+      position:sticky;top:0;background:var(--sur);z-index:1;">${date} <span style="color:var(--txt3);font-weight:normal;">(${grpRows.length})</span></div>`;
+    grpRows.forEach(r=>{
+      const idx=ROWS.indexOf(r);
+      html+=chronCard(r,idx);
+    });
+  });
+
+  // Pagination controls
+  const totalPages=Math.ceil(ROWS.length/CHRON_PAGE_SIZE);
+  const hasPrev=chromPage>0;
+  const hasNext=chromPage<totalPages-1;
+  html+=`<div style="display:flex;gap:8px;justify-content:space-between;align-items:center;
+    padding:16px 0 4px;border-top:1px solid var(--bor);margin-top:8px;">
+    <button onclick="chromPageNav(-1)" ${hasPrev?'':'disabled'}
+      style="font-family:var(--mono);font-size:11px;padding:6px 14px;border:1px solid var(--bor);
+      border-radius:3px;background:var(--sur);color:${hasPrev?'var(--txt)':'var(--txt3)'};cursor:${hasPrev?'pointer':'default'};">
+      ← Newer
+    </button>
+    <span style="font-family:var(--mono);font-size:10px;color:var(--txt3);">
+      ${start+1}–${Math.min(start+CHRON_PAGE_SIZE,ROWS.length)} of ${ROWS.length}
+    </span>
+    <button onclick="chromPageNav(1)" ${hasNext?'':'disabled'}
+      style="font-family:var(--mono);font-size:11px;padding:6px 14px;border:1px solid var(--bor);
+      border-radius:3px;background:var(--sur);color:${hasNext?'var(--txt)':'var(--txt3)'};cursor:${hasNext?'pointer':'default'};">
+      Older →
+    </button>
+  </div>`;
+
+  if(chromPage===0){
+    bEl.innerHTML=html;
+  } else {
+    bEl.innerHTML=html;
+    bEl.scrollTop=0;
+  }
+}
+
+function chromPageNav(dir){
+  const totalPages=Math.ceil(ROWS.length/CHRON_PAGE_SIZE);
+  chromPage=Math.max(0,Math.min(totalPages-1,chromPage+dir));
+  renderChronPage();
+}
+
+function chronCard(r,idx){
+  const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};
+  const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
+  const um=r.content.match(/https?:\/\/\S+/),aurl=um?um[0]:null;
+  const linkUrl=aurl||r.url||null;
+  const tagChips=(r.tagList||[]).slice(0,4).map(t=>{
+    const safe=t.replace(/'/g,"\\'");
+    return `<span style="font-family:var(--mono);font-size:9px;padding:1px 6px;border-radius:8px;
+      background:${td.bg};color:${td.fg};cursor:pointer;"
+      onclick="event.stopPropagation();filterByTag('${safe}')">${eh(t)}</span>`;
+  }).join('');
+  return `<div class="dsig" style="cursor:pointer;" onclick="openSingleRaw(ROWS[${idx}])">
+    <p class="dtxt">${eh(txt.slice(0,280))}${txt.length>280?'…':''}</p>
+    <div class="dmeta" style="margin-top:6px;">
+      <span class="dtheme" style="background:${td.bg};color:${td.fg};">${r.theme}</span>
+      <span class="ddate">${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
+      ${linkUrl?`<a href="${eh(linkUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()"
+        style="font-family:var(--mono);font-size:10px;color:var(--blue);text-decoration:none;
+        background:var(--sur2);border:1px solid var(--bor);padding:2px 8px;border-radius:3px;">↗ open</a>`:''}
+    </div>
+    ${tagChips?`<div class="dtags" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">${tagChips}</div>`:''}
+  </div>`;
 }
 
 function openD(title,subtitle,sigRows,tagFilter){
