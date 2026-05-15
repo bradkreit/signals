@@ -464,23 +464,45 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
 
     <!-- ── Issues tab ── -->
     <div class="tp" id="tp-iss">
-      <div style="display:grid;grid-template-columns:260px 1fr;gap:16px;align-items:start;min-height:700px;">
+      <div style="display:grid;grid-template-columns:200px 1fr 240px;gap:14px;align-items:start;min-height:700px;">
 
-        <!-- Left: issue list -->
-        <div style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;overflow:hidden;">
-          <div style="padding:14px 16px;border-bottom:1px solid var(--bor);display:flex;align-items:center;justify-content:space-between;">
+        <!-- Col 1: issue list -->
+        <div style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;overflow:hidden;position:sticky;top:16px;">
+          <div style="padding:12px 14px;border-bottom:1px solid var(--bor);display:flex;align-items:center;justify-content:space-between;">
             <span style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3);">Issues</span>
-            <button onclick="issNew()" class="rbtn" style="font-size:10px;padding:4px 10px;background:var(--blue);color:#fff;border-color:var(--blue);">+ New</button>
+            <button onclick="issNew()" class="rbtn" style="font-size:10px;padding:3px 9px;background:var(--blue);color:#fff;border-color:var(--blue);">+ New</button>
           </div>
-          <div id="iss-list" style="overflow-y:auto;max-height:680px;"></div>
+          <div id="iss-list" style="overflow-y:auto;max-height:640px;"></div>
         </div>
 
-        <!-- Right: issue detail -->
+        <!-- Col 2: issue detail -->
         <div id="iss-detail">
           <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:400px;color:var(--txt3);font-family:var(--mono);font-size:12px;text-align:center;gap:8px;">
             <div style="font-size:24px;">◎</div>
             <div>Select an issue or create a new one</div>
             <div style="font-size:10px;color:var(--txt3);">Each issue is a living document connecting<br>signals, clusters, and scenarios</div>
+          </div>
+        </div>
+
+        <!-- Col 3: signal/cluster/scenario browser for dragging -->
+        <div style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;overflow:hidden;position:sticky;top:16px;">
+          <div style="padding:10px 14px;border-bottom:1px solid var(--bor);">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3);margin-bottom:8px;">Drag to connect ↓</div>
+            <input type="text" id="iss-browser-search" placeholder="Filter…" oninput="issRenderBrowser(this.value)"
+              style="width:100%;font-family:var(--mono);font-size:11px;padding:4px 8px;border:1px solid var(--bor);border-radius:3px;background:var(--bg);color:var(--txt);outline:none;">
+          </div>
+          <!-- Section tabs -->
+          <div style="display:flex;border-bottom:1px solid var(--bor);">
+            <button id="iss-tab-signals" onclick="issSetBrowserTab('signals')"
+              style="flex:1;font-family:var(--mono);font-size:9px;padding:7px 4px;border:none;border-bottom:2px solid var(--blue);background:var(--sur);color:var(--blue);cursor:pointer;letter-spacing:.05em;text-transform:uppercase;">Signals</button>
+            <button id="iss-tab-clusters" onclick="issSetBrowserTab('clusters')"
+              style="flex:1;font-family:var(--mono);font-size:9px;padding:7px 4px;border:none;border-bottom:2px solid transparent;background:var(--sur);color:var(--txt3);cursor:pointer;letter-spacing:.05em;text-transform:uppercase;">Clusters</button>
+            <button id="iss-tab-scenarios" onclick="issSetBrowserTab('scenarios')"
+              style="flex:1;font-family:var(--mono);font-size:9px;padding:7px 4px;border:none;border-bottom:2px solid transparent;background:var(--sur);color:var(--txt3);cursor:pointer;letter-spacing:.05em;text-transform:uppercase;">Scenarios</button>
+          </div>
+          <div id="iss-browser-list" style="overflow-y:auto;max-height:560px;padding:8px 10px;display:flex;flex-direction:column;gap:5px;"></div>
+          <div style="padding:8px 12px;border-top:1px solid var(--bor);font-family:var(--mono);font-size:9px;color:var(--txt3);line-height:1.5;">
+            Drag any item onto the<br>drop zone in the issue
           </div>
         </div>
 
@@ -2571,6 +2593,7 @@ function issInit(){
   }
   issRenderList();
   if(issActiveId)issRenderDetail(issActiveId);
+  issRenderBrowser('');
 }
 
 function issSave(){
@@ -2895,7 +2918,7 @@ function issQuickScan(id){
   scanEl.innerHTML+=`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:10px;">Quick scan · ${iss.scanResults.length} candidates · Click any to view · Drag to connect ↑</div>`;
 }
 
-// ── Deep scan (Claude-powered) ────────────────────────────────
+// ── Deep scan (Claude via Apps Script proxy) ──────────────────
 async function issDeepScan(id){
   const iss=issIssues.find(i=>i.id===id);if(!iss)return;
   if(!iss.description||iss.description.trim().length<20){
@@ -2905,7 +2928,7 @@ async function issDeepScan(id){
   const scanEl=document.getElementById('iss-scan-'+id);if(!scanEl)return;
   scanEl.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--txt2);padding:16px 0;text-align:center;">
     <div class="spin" style="margin:0 auto 10px;"></div>
-    Running deep scan — asking Claude to find connections…
+    Running deep scan — finding connections…
   </div>`;
 
   // First run quick scan to get top candidates
@@ -2916,12 +2939,12 @@ async function issDeepScan(id){
     return;
   }
 
-  // Build candidate text for Claude
+  // Build candidate text
   const candidateText=candidates.map((sr,i)=>{
     const r=ROWS[sr.idx];if(!r)return'';
     const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
-    const summary=r.aiSummary?` Summary: ${r.aiSummary}`:'';
-    return `[${i}] ${txt.slice(0,200)}${summary.slice(0,150)}`;
+    const summary=r.aiSummary?` Summary: ${r.aiSummary.slice(0,150)}`:'';
+    return `[${i}] ${txt.slice(0,200)}${summary}`;
   }).filter(Boolean).join('\n\n');
 
   const prompt=`You are a strategic foresight analyst.
@@ -2931,41 +2954,45 @@ ISSUE NAME: ${iss.name}
 DESCRIPTION: ${iss.description}
 ${iss.notes?'ANALYST NOTES: '+iss.notes:''}
 
-Below are ${candidates.length} weak signals from their database. For each signal that genuinely connects to the issue, explain WHY it connects in one concise sentence. Skip signals with no meaningful connection.
+Below are ${candidates.length} weak signals. For each that genuinely connects to the issue, explain WHY in one concise sentence. Skip signals with no meaningful connection.
 
-Respond ONLY with a JSON array. Each object: {"index": N, "relevance": 0.0-1.0, "why": "one sentence explanation"}
+Respond ONLY with a JSON array. Each object: {"index": N, "relevance": 0.0-1.0, "why": "one sentence"}
 Only include signals with relevance > 0.3.
 
 SIGNALS:
 ${candidateText}`;
 
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-haiku-4-5-20251001',
-        max_tokens:1500,
-        messages:[{role:'user',content:prompt}]
-      })
-    });
-    const data=await res.json();
-    const raw=data.content[0].text.replace(/```json|```/g,'').trim();
-    const results=JSON.parse(raw);
+    // Use the Apps Script web app endpoint as a proxy to avoid CORS
+    // The endpoint calls Claude and returns the result
+    // Falls back to enhanced quick scan if not configured
+    const appsScriptUrl = window._appsScriptUrl || '';
 
-    // Merge Claude's relevance scores and explanations back
+    let results;
+    if(appsScriptUrl){
+      // Route through Apps Script proxy
+      const res=await fetch(appsScriptUrl+'?action=claudeProxy&token='+encodeURIComponent(window._appsScriptToken||''),{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({prompt,maxTokens:1500})
+      });
+      const data=await res.json();
+      const raw=(data.text||'').replace(/```json|```/g,'').trim();
+      results=JSON.parse(raw);
+    } else {
+      // No proxy configured — do an enhanced keyword scan with explanations
+      results=issEnhancedScan(iss,candidates);
+    }
+
+    // Merge results
     iss.scanResults=results
       .filter(r=>r.relevance>0.3&&candidates[r.index])
       .sort((a,b)=>b.relevance-a.relevance)
-      .map(r=>({
-        idx:candidates[r.index].idx,
-        score:r.relevance,
-        why:r.why||''
-      }));
+      .map(r=>({idx:candidates[r.index].idx,score:r.relevance,why:r.why||''}));
     iss.updatedAt=new Date().toISOString();
     issSave();
 
-    // Re-render
+    // Render results
     const html=iss.scanResults.map(sr=>{
       const r=ROWS[sr.idx];if(!r)return'';
       const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
@@ -2974,30 +3001,142 @@ ${candidateText}`;
         <div class="iss-scan-score">
           <div class="iss-scan-bar" style="width:${Math.max(6,pct)}px;background:var(--blue);"></div>
           <span style="color:var(--blue);font-weight:500;">${pct}% relevant</span>
-          <span style="color:var(--txt3);">${r.theme}</span>
-          <span style="color:var(--txt3);">${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
+          <span style="color:var(--txt3);">${r.theme.split(' ')[0]}</span>
+          <span style="color:var(--txt3);">${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
         </div>
-        <div style="font-size:11px;color:var(--txt);line-height:1.45;">${eh(txt.slice(0,200))}${txt.length>200?'…':''}</div>
+        <div style="font-size:11px;color:var(--txt);line-height:1.45;">${eh(txt.slice(0,180))}${txt.length>180?'…':''}</div>
         ${sr.why?`<div class="iss-scan-why">↳ ${eh(sr.why)}</div>`:''}
         <button onclick="event.stopPropagation();issAttachFromScan('${id}',${sr.idx})"
-          style="margin-top:6px;font-family:var(--mono);font-size:9px;padding:2px 8px;
-          border:1px solid var(--bor);border-radius:3px;background:none;cursor:pointer;
-          color:var(--txt2);transition:all .12s;"
-          onmouseover="this.style.background='var(--blue)';this.style.color='#fff'"
-          onmouseout="this.style.background='none';this.style.color='var(--txt2)'">
+          style="margin-top:5px;font-family:var(--mono);font-size:9px;padding:2px 8px;
+          border:1px solid var(--bor);border-radius:3px;background:none;cursor:pointer;color:var(--txt2);">
           + Connect to issue
         </button>
       </div>`;
     }).join('');
 
-    scanEl.innerHTML=(html||`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:12px 0;">Claude found no strong connections. Try refining your issue description.</div>`)
-      +`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:10px;">Deep scan ✦ ${iss.scanResults.length} connections found · Click any to view detail</div>`;
+    scanEl.innerHTML=(html||`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:12px 0;">No strong connections found. Try refining your description.</div>`)
+      +`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:10px;">${iss.scanResults.length} connections found · Click any to view detail</div>`;
 
   }catch(err){
-    scanEl.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:12px 0;">
-      Deep scan failed — ${err.message}<br><br>
-      <span style="font-size:10px;">Tip: make sure you're using Claude.ai which handles API access automatically.</span>
-    </div>`;
+    // Fall back to enhanced quick scan
+    const fallback=issEnhancedScan(iss,candidates);
+    iss.scanResults=fallback
+      .sort((a,b)=>b.relevance-a.relevance)
+      .map(r=>({idx:candidates[r.index].idx,score:r.relevance,why:r.why}));
+    issSave();
+    issRenderDetail(id);
+    const scanEl2=document.getElementById('iss-scan-'+id);
+    if(scanEl2){
+      const note=document.createElement('div');
+      note.style.cssText='font-family:var(--mono);font-size:9px;color:var(--txt3);padding:8px 0;border-top:1px solid var(--bor);margin-top:8px;';
+      note.textContent='Showing keyword-based scan. For Claude-powered analysis, add your Apps Script URL to the config.';
+      scanEl2.appendChild(note);
+    }
+  }
+}
+
+// Enhanced keyword scan with human-readable explanations
+function issEnhancedScan(iss,candidates){
+  const issWords=new Set((iss.name+' '+iss.description+' '+(iss.notes||''))
+    .toLowerCase().split(/\W+/).filter(w=>w.length>=4));
+  return candidates.map((sr,i)=>{
+    const r=ROWS[sr.idx];if(!r)return null;
+    const hay=(r.content+' '+(r.aiSummary||'')+' '+(r.tags||'')).toLowerCase();
+    const matches=[...issWords].filter(w=>hay.includes(w));
+    const sharedTags=(r.tagList||[]).filter(t=>
+      [...issWords].some(w=>t.toLowerCase().includes(w))
+    );
+    let why='';
+    if(sharedTags.length)why=`Shares tags: ${sharedTags.slice(0,3).join(', ')}`;
+    else if(matches.length)why=`Matches: ${matches.slice(0,4).join(', ')}`;
+    return{index:i,relevance:Math.min(1,sr.score),why};
+  }).filter(Boolean);
+}
+
+// ── Issue browser (right column) ──────────────────────────────
+let issBrowserTab='signals';
+
+function issSetBrowserTab(tab){
+  issBrowserTab=tab;
+  ['signals','clusters','scenarios'].forEach(t=>{
+    const btn=document.getElementById('iss-tab-'+t);
+    if(!btn)return;
+    btn.style.borderBottom=t===tab?'2px solid var(--blue)':'2px solid transparent';
+    btn.style.color=t===tab?'var(--blue)':'var(--txt3)';
+  });
+  issRenderBrowser(document.getElementById('iss-browser-search')?.value||'');
+}
+
+function issRenderBrowser(q=''){
+  const list=document.getElementById('iss-browser-list');if(!list)return;
+  q=q.toLowerCase().trim();
+  list.innerHTML='';
+
+  if(issBrowserTab==='signals'){
+    const visible=ROWS.filter(r=>{
+      if(!q)return true;
+      return(r.content+' '+(r.aiSummary||'')+' '+r.theme+' '+r.tags).toLowerCase().includes(q);
+    }).slice(0,60);
+    if(!visible.length){list.innerHTML=`<div style="font-family:var(--mono);font-size:10px;color:var(--txt3);padding:8px;">No signals found.</div>`;return;}
+    visible.forEach(r=>{
+      const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};
+      const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
+      const el=document.createElement('div');
+      el.style.cssText=`padding:7px 9px;background:var(--sur2);border:1px solid var(--bor);
+        border-left:3px solid ${td.c};border-radius:4px;cursor:grab;font-size:11px;
+        color:var(--txt);line-height:1.4;user-select:none;`;
+      el.innerHTML=`<div>${eh(txt.slice(0,90))}${txt.length>90?'…':''}</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:3px;">
+          ${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})} · ${r.theme.split(' ')[0]}
+        </div>`;
+      el.draggable=true;
+      el.title='Drag to connect to an issue';
+      el.addEventListener('dragstart',e=>{
+        e.dataTransfer.setData('text/plain',JSON.stringify({type:'pool',idx:r.idx}));
+        el.style.opacity='0.4';
+      });
+      el.addEventListener('dragend',()=>{el.style.opacity='1';});
+      list.appendChild(el);
+    });
+
+  } else if(issBrowserTab==='clusters'){
+    const visible=clClusters.filter(cl=>!q||cl.name.toLowerCase().includes(q));
+    if(!visible.length){list.innerHTML=`<div style="font-family:var(--mono);font-size:10px;color:var(--txt3);padding:8px;">No clusters yet. Create some in the Clusters tab.</div>`;return;}
+    visible.forEach(cl=>{
+      const el=document.createElement('div');
+      const p=cl.color||{bg:'#E6EEF7',border:'#2D5FA0'};
+      el.style.cssText=`padding:8px 10px;background:${p.bg};border:1.5px solid ${p.border||'#2D5FA0'};
+        border-radius:4px;cursor:grab;user-select:none;`;
+      el.innerHTML=`<div style="font-size:12px;font-weight:500;color:var(--txt);">${eh(cl.name)}</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:3px;">${cl.signals.length} signal${cl.signals.length!==1?'s':''}</div>`;
+      el.draggable=true;
+      el.title='Drag to connect cluster to an issue';
+      el.addEventListener('dragstart',e=>{
+        e.dataTransfer.setData('text/plain',JSON.stringify({type:'iss-cluster',clId:cl.id}));
+        el.style.opacity='0.4';
+      });
+      el.addEventListener('dragend',()=>{el.style.opacity='1';});
+      list.appendChild(el);
+    });
+
+  } else if(issBrowserTab==='scenarios'){
+    const visible=sc2Frameworks.filter(fw=>!q||fw.name.toLowerCase().includes(q));
+    if(!visible.length){list.innerHTML=`<div style="font-family:var(--mono);font-size:10px;color:var(--txt3);padding:8px;">No frameworks yet. Create some in the Scenarios tab.</div>`;return;}
+    visible.forEach(fw=>{
+      const el=document.createElement('div');
+      el.style.cssText=`padding:8px 10px;background:#E5F1EA;border:1.5px solid #2A7A52;
+        border-radius:4px;cursor:grab;user-select:none;`;
+      el.innerHTML=`<div style="font-size:12px;font-weight:500;color:var(--txt);">${eh(fw.name)}</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:3px;">${fw.items.length} item${fw.items.length!==1?'s':''}</div>`;
+      el.draggable=true;
+      el.title='Drag to connect scenario to an issue';
+      el.addEventListener('dragstart',e=>{
+        e.dataTransfer.setData('text/plain',JSON.stringify({type:'iss-scenario',fwId:fw.id}));
+        el.style.opacity='0.4';
+      });
+      el.addEventListener('dragend',()=>{el.style.opacity='1';});
+      list.appendChild(el);
+    });
   }
 }
 
