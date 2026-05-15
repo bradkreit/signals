@@ -2949,19 +2949,28 @@ function issQuickScan(id){
   const html=iss.scanResults.slice(0,20).map(sr=>{
     const r=ROWS[sr.idx];if(!r)return'';
     const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
+    const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};
     const pct=Math.round(sr.score*100);
-    return `<div class="iss-scan-result" onclick="openSingleRaw(ROWS[${sr.idx}])">
+    return `<div class="iss-scan-result" draggable="true"
+      ondragstart="issScanDragStart(event,${sr.idx})"
+      onclick="openSingleRaw(ROWS[${sr.idx}])">
       <div class="iss-scan-score">
         <div class="iss-scan-bar" style="width:${Math.max(6,pct)}px;"></div>
         <span>${pct}% match</span>
-        <span style="color:var(--txt3);">${r.theme}</span>
-        <span style="color:var(--txt3);">${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
+        <span style="background:${td.bg};color:${td.fg};padding:1px 5px;border-radius:2px;font-size:8px;">${r.theme.split(' ')[0]}</span>
+        <span style="color:var(--txt3);">${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+        <span style="color:var(--txt3);margin-left:auto;font-size:8px;cursor:grab;" title="Drag to connect">⠿ drag</span>
       </div>
-      <div style="font-size:11px;color:var(--txt);line-height:1.45;">${eh(txt.slice(0,200))}${txt.length>200?'…':''}</div>
+      <div style="font-size:11px;color:var(--txt);line-height:1.45;margin:4px 0;">${eh(txt.slice(0,200))}${txt.length>200?'…':''}</div>
+      <button onclick="event.stopPropagation();issAttachFromScan('${id}',${sr.idx})"
+        style="margin-top:4px;font-family:var(--mono);font-size:9px;padding:2px 8px;
+        border:1px solid var(--bor);border-radius:3px;background:none;cursor:pointer;color:var(--txt2);">
+        + Connect to issue
+      </button>
     </div>`;
   }).join('');
   scanEl.innerHTML=html||`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:12px 0;">No matching signals found. Try adding more detail to your issue description.</div>`;
-  scanEl.innerHTML+=`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:10px;">Quick scan · ${iss.scanResults.length} candidates · Click any to view · Drag to connect ↑</div>`;
+  scanEl.innerHTML+=`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:10px;border-top:1px solid var(--bor);padding-top:8px;">Quick scan · ${iss.scanResults.length} candidates · drag or click + Connect · run Deep scan ✦ for Claude-powered analysis</div>`;
 }
 
 // ── Deep scan (Claude via Apps Script proxy) ──────────────────
@@ -3015,18 +3024,26 @@ ${candidateText}`;
     const appsScriptToken=cfg.appsScriptToken||'';
 
     let results;
+    let usedClaude=false;
+
     if(appsScriptUrl&&appsScriptToken){
-      // Route through Apps Script proxy
-      const res=await fetch(appsScriptUrl+'?action=claudeProxy&token='+encodeURIComponent(appsScriptToken),{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({prompt,maxTokens:1500})
+      // Send prompt via GET parameter — Apps Script doGet handles this reliably
+      // Prompt is chunked to stay under URL limits
+      const params=new URLSearchParams({
+        action:'claudeProxy',
+        token:appsScriptToken,
+        prompt:prompt.slice(0,4000), // keep under URL limit
+        maxTokens:'1500'
       });
+      const proxyUrl=`${appsScriptUrl}?${params.toString()}`;
+      const res=await fetch(proxyUrl);
+      if(!res.ok)throw new Error('Proxy returned HTTP '+res.status);
       const data=await res.json();
-      const raw=(data.text||'').replace(/```json|```/g,'').trim();
+      if(!data.success)throw new Error(data.error||'Proxy error');
+      const raw=data.text.replace(/```json|```/g,'').trim();
       results=JSON.parse(raw);
+      usedClaude=true;
     } else {
-      // No proxy configured — fall back to enhanced keyword scan
       results=issEnhancedScan(iss,candidates);
     }
 
@@ -3038,19 +3055,24 @@ ${candidateText}`;
     iss.updatedAt=new Date().toISOString();
     issSave();
 
-    // Render results
+    // Render results — draggable cards
     const html=iss.scanResults.map(sr=>{
       const r=ROWS[sr.idx];if(!r)return'';
       const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
+      const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};
       const pct=Math.round(sr.score*100);
-      return `<div class="iss-scan-result" onclick="openSingleRaw(ROWS[${sr.idx}])">
+      return `<div class="iss-scan-result" draggable="true"
+        data-idx="${sr.idx}"
+        ondragstart="issScanDragStart(event,${sr.idx})"
+        onclick="openSingleRaw(ROWS[${sr.idx}])">
         <div class="iss-scan-score">
           <div class="iss-scan-bar" style="width:${Math.max(6,pct)}px;background:var(--blue);"></div>
-          <span style="color:var(--blue);font-weight:500;">${pct}% relevant</span>
-          <span style="color:var(--txt3);">${r.theme.split(' ')[0]}</span>
+          <span style="color:var(--blue);font-weight:500;">${pct}%</span>
+          <span style="background:${td.bg};color:${td.fg};padding:1px 5px;border-radius:2px;font-size:8px;">${r.theme.split(' ')[0]}</span>
           <span style="color:var(--txt3);">${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+          <span style="color:var(--txt3);margin-left:auto;font-size:8px;cursor:grab;" title="Drag to connect">⠿ drag</span>
         </div>
-        <div style="font-size:11px;color:var(--txt);line-height:1.45;">${eh(txt.slice(0,180))}${txt.length>180?'…':''}</div>
+        <div style="font-size:11px;color:var(--txt);line-height:1.45;margin:4px 0;">${eh(txt.slice(0,180))}${txt.length>180?'…':''}</div>
         ${sr.why?`<div class="iss-scan-why">↳ ${eh(sr.why)}</div>`:''}
         <button onclick="event.stopPropagation();issAttachFromScan('${id}',${sr.idx})"
           style="margin-top:5px;font-family:var(--mono);font-size:9px;padding:2px 8px;
@@ -3060,8 +3082,12 @@ ${candidateText}`;
       </div>`;
     }).join('');
 
+    const scanLabel=usedClaude
+      ?`Claude deep scan ✦ · ${iss.scanResults.length} connections · drag or click + Connect`
+      :`Keyword scan · ${iss.scanResults.length} matches · configure ⚙ for Claude-powered scan`;
+
     scanEl.innerHTML=(html||`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:12px 0;">No strong connections found. Try refining your description.</div>`)
-      +`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:10px;">${iss.scanResults.length} connections found · Click any to view detail</div>`;
+      +`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:10px;border-top:1px solid var(--bor);padding-top:8px;">${scanLabel}</div>`;
 
   }catch(err){
     // Fall back to enhanced quick scan
@@ -3184,6 +3210,12 @@ function issRenderBrowser(q=''){
       list.appendChild(el);
     });
   }
+}
+
+// Drag handler for scan result cards
+function issScanDragStart(e,sigIdx){
+  e.dataTransfer.setData('text/plain',JSON.stringify({type:'pool',idx:sigIdx}));
+  e.stopPropagation();
 }
 
 function issAttachFromScan(issId,sigIdx){
