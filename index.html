@@ -138,6 +138,28 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
 /* Scenario shape tiles */
 .sc2-shape-tile{transition:box-shadow .12s,transform .12s;}
 .sc2-shape-tile:hover{box-shadow:0 2px 8px rgba(0,0,0,0.12);transform:translateY(-1px);}
+/* Issues tab */
+.iss-list-item{padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--bor);transition:background .12s;position:relative;}
+.iss-list-item:hover{background:var(--sur2);}
+.iss-list-item.active{background:var(--sur2);border-left:3px solid var(--blue);}
+.iss-list-item .iss-name{font-size:13px;font-weight:500;color:var(--txt);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.iss-list-item .iss-meta{font-family:var(--mono);font-size:9px;color:var(--txt3);display:flex;gap:8px;flex-wrap:wrap;}
+.iss-detail-card{background:var(--sur);border:1px solid var(--bor);border-radius:6px;margin-bottom:12px;}
+.iss-detail-card .iss-card-title{font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--txt3);padding:12px 16px;border-bottom:1px solid var(--bor);display:flex;justify-content:space-between;align-items:center;}
+.iss-attached{padding:10px 16px;display:flex;flex-direction:column;gap:7px;min-height:44px;}
+.iss-attached-item{display:flex;align-items:flex-start;gap:8px;padding:7px 10px;background:var(--sur2);border:1px solid var(--bor);border-radius:4px;cursor:pointer;transition:background .12s;position:relative;}
+.iss-attached-item:hover{background:var(--sur3);}
+.iss-attached-type{font-family:var(--mono);font-size:8px;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);flex-shrink:0;padding-top:2px;width:44px;}
+.iss-attached-text{font-size:11px;color:var(--txt);line-height:1.45;flex:1;}
+.iss-attached-del{position:absolute;top:4px;right:6px;background:none;border:none;cursor:pointer;font-size:10px;color:var(--txt3);opacity:0;transition:opacity .12s;}
+.iss-attached-item:hover .iss-attached-del{opacity:1;}
+.iss-drop-zone{border:2px dashed var(--bor2);border-radius:4px;padding:10px;text-align:center;font-family:var(--mono);font-size:10px;color:var(--txt3);transition:all .12s;margin:8px 16px;}
+.iss-drop-zone.over{border-color:var(--blue);background:rgba(45,95,160,0.04);color:var(--blue);}
+.iss-scan-result{padding:10px 14px;background:var(--bg);border:1px solid var(--bor);border-radius:4px;margin-bottom:6px;cursor:pointer;transition:all .12s;}
+.iss-scan-result:hover{border-color:var(--bor2);background:var(--sur2);}
+.iss-scan-score{font-family:var(--mono);font-size:9px;color:var(--txt3);margin-bottom:3px;display:flex;gap:6px;align-items:center;}
+.iss-scan-bar{height:3px;border-radius:2px;background:var(--blue);opacity:.6;}
+.iss-scan-why{font-size:10px;color:var(--txt2);margin-top:4px;font-style:italic;line-height:1.4;}
 </style>
 </head>
 <body>
@@ -171,6 +193,7 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
       <div class="tab" onclick="sw('net')">Network</div>
       <div class="tab" onclick="sw('cl')">Clusters</div>
       <div class="tab" onclick="sw('sc2')">Scenarios</div>
+      <div class="tab" onclick="sw('iss')">Issues</div>
     </div>
     <div class="tp active" id="tp-ov">
       <div id="search-results" style="display:none;margin-bottom:16px;">
@@ -438,6 +461,32 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
         </div>
       </div>
     </div>
+
+    <!-- ── Issues tab ── -->
+    <div class="tp" id="tp-iss">
+      <div style="display:grid;grid-template-columns:260px 1fr;gap:16px;align-items:start;min-height:700px;">
+
+        <!-- Left: issue list -->
+        <div style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;overflow:hidden;">
+          <div style="padding:14px 16px;border-bottom:1px solid var(--bor);display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3);">Issues</span>
+            <button onclick="issNew()" class="rbtn" style="font-size:10px;padding:4px 10px;background:var(--blue);color:#fff;border-color:var(--blue);">+ New</button>
+          </div>
+          <div id="iss-list" style="overflow-y:auto;max-height:680px;"></div>
+        </div>
+
+        <!-- Right: issue detail -->
+        <div id="iss-detail">
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:400px;color:var(--txt3);font-family:var(--mono);font-size:12px;text-align:center;gap:8px;">
+            <div style="font-size:24px;">◎</div>
+            <div>Select an issue or create a new one</div>
+            <div style="font-size:10px;color:var(--txt3);">Each issue is a living document connecting<br>signals, clusters, and scenarios</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 </div>
 <div class="ov" id="ov" onclick="closeD()"></div>
@@ -1222,12 +1271,13 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeD();});
 function sw(name){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.tp').forEach(p=>p.classList.remove('active'));
-  const idx=['ov','hm','wk','net','cl','sc2'].indexOf(name);
+  const idx=['ov','hm','wk','net','cl','sc2','iss'].indexOf(name);
   document.querySelectorAll('.tab')[idx].classList.add('active');
   document.getElementById('tp-'+name).classList.add('active');
   if(name==='net')renderNet('theme');
   if(name==='cl')initCluster();
   if(name==='sc2')sc2Init();
+  if(name==='iss')issInit();
 }
 
 // ── Cluster board ─────────────────────────────────────────────
@@ -2508,6 +2558,481 @@ document.addEventListener('keydown',e=>{
     document.getElementById('search').focus();
   }
 });
+
+// ── Issues Tracker ────────────────────────────────────────────
+const ISS_KEY='weaksig_issues_v1';
+let issIssues=[], issActiveId=null, issInited=false;
+
+function issInit(){
+  if(!issInited){
+    issInited=true;
+    const saved=localStorage.getItem(ISS_KEY);
+    if(saved){try{issIssues=JSON.parse(saved);}catch(e){}}
+  }
+  issRenderList();
+  if(issActiveId)issRenderDetail(issActiveId);
+}
+
+function issSave(){
+  try{localStorage.setItem(ISS_KEY,JSON.stringify(issIssues));}catch(e){}
+}
+
+function issActive(){return issIssues.find(i=>i.id===issActiveId);}
+
+// ── List ──────────────────────────────────────────────────────
+function issRenderList(){
+  const el=document.getElementById('iss-list');if(!el)return;
+  if(!issIssues.length){
+    el.innerHTML=`<div style="padding:20px 16px;font-family:var(--mono);font-size:11px;color:var(--txt3);text-align:center;line-height:1.8;">
+      No issues yet.<br>Click + New to start tracking one.
+    </div>`;
+    return;
+  }
+  el.innerHTML=issIssues.map(iss=>{
+    const sigCount=iss.attached.filter(a=>a.type==='signal').length;
+    const otherCount=iss.attached.filter(a=>a.type!=='signal').length;
+    const updated=iss.updatedAt?new Date(iss.updatedAt).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'';
+    const active=iss.id===issActiveId;
+    return `<div class="iss-list-item${active?' active':''}" onclick="issSelect('${iss.id}')">
+      <div class="iss-name">${eh(iss.name)}</div>
+      <div class="iss-meta">
+        <span>${sigCount} signal${sigCount!==1?'s':''}</span>
+        ${otherCount?`<span>${otherCount} other</span>`:''}
+        ${updated?`<span>${updated}</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function issNew(){
+  const name=prompt('Issue name:','');if(!name||!name.trim())return;
+  const iss={
+    id:'iss_'+Date.now(),
+    name:name.trim(),
+    description:'',
+    attached:[],   // {id, type:'signal'|'cluster'|'scenario'|'note', ref, label, addedAt}
+    notes:'',
+    createdAt:new Date().toISOString(),
+    updatedAt:new Date().toISOString(),
+    scanResults:[]
+  };
+  issIssues.unshift(iss);
+  issActiveId=iss.id;
+  issSave();
+  issRenderList();
+  issRenderDetail(iss.id);
+}
+
+function issSelect(id){
+  issActiveId=id;
+  issRenderList();
+  issRenderDetail(id);
+}
+
+function issDelete(id){
+  if(!confirm('Delete this issue?'))return;
+  issIssues=issIssues.filter(i=>i.id!==id);
+  if(issActiveId===id){
+    issActiveId=issIssues[0]?.id||null;
+  }
+  issSave();
+  issRenderList();
+  if(issActiveId)issRenderDetail(issActiveId);
+  else document.getElementById('iss-detail').innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:400px;color:var(--txt3);font-family:var(--mono);font-size:12px;text-align:center;gap:8px;"><div style="font-size:24px;">◎</div><div>Select an issue or create a new one</div></div>`;
+}
+
+// ── Detail view ───────────────────────────────────────────────
+function issRenderDetail(id){
+  const iss=issIssues.find(i=>i.id===id);if(!iss)return;
+  const det=document.getElementById('iss-detail');
+
+  // Attached items grouped by type
+  const signals=iss.attached.filter(a=>a.type==='signal');
+  const clusters=iss.attached.filter(a=>a.type==='cluster');
+  const scenarios=iss.attached.filter(a=>a.type==='scenario');
+  const notes=iss.attached.filter(a=>a.type==='note');
+
+  const attachedHtml=(items,typeLabel)=>items.map(a=>`
+    <div class="iss-attached-item" onclick="issOpenAttached('${id}','${a.id}')">
+      <span class="iss-attached-type">${typeLabel}</span>
+      <span class="iss-attached-text">${eh((a.label||'').slice(0,160))}${(a.label||'').length>160?'…':''}</span>
+      <button class="iss-attached-del" onclick="event.stopPropagation();issDetach('${id}','${a.id}')" title="Remove">✕</button>
+    </div>`).join('');
+
+  // Scan results
+  const scanHtml=iss.scanResults&&iss.scanResults.length
+    ? iss.scanResults.slice(0,20).map(sr=>{
+        const r=ROWS[sr.idx];if(!r)return'';
+        const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
+        const pct=Math.round(sr.score*100);
+        return `<div class="iss-scan-result" onclick="openSingleRaw(ROWS[${sr.idx}])">
+          <div class="iss-scan-score">
+            <div class="iss-scan-bar" style="width:${Math.max(6,pct)}px;"></div>
+            <span>${pct}% match</span>
+            <span style="color:var(--txt3);">${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
+          </div>
+          <div style="font-size:11px;color:var(--txt);line-height:1.45;">${eh(txt.slice(0,200))}${txt.length>200?'…':''}</div>
+          ${sr.why?`<div class="iss-scan-why">${eh(sr.why)}</div>`:''}
+        </div>`;
+      }).join('')
+    : `<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:12px 0;">
+        Run a scan to find signals connected to this issue.
+      </div>`;
+
+  det.innerHTML=`
+    <!-- Header -->
+    <div class="iss-detail-card">
+      <div class="iss-card-title">
+        <span id="iss-name-label" style="cursor:text;font-family:var(--serif);font-size:14px;font-weight:700;color:var(--txt);text-transform:none;letter-spacing:0;"
+          ondblclick="issRenameInline('${id}',this)">${eh(iss.name)}</span>
+        <div style="display:flex;gap:6px;">
+          <button onclick="issExport('${id}')" class="rbtn" style="font-size:10px;padding:3px 9px;">↑ Export</button>
+          <button onclick="issDelete('${id}')" class="rbtn" style="font-size:10px;padding:3px 9px;color:var(--txt3);">Delete</button>
+        </div>
+      </div>
+      <!-- Description -->
+      <div style="padding:14px 16px;">
+        <div style="font-family:var(--mono);font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Description / framing</div>
+        <textarea id="iss-desc-${id}" placeholder="Describe the issue you're tracking — what's the core question, why does it matter, what are you watching for?"
+          onchange="issUpdateDesc('${id}',this.value)"
+          style="width:100%;min-height:100px;font-family:var(--sans);font-size:13px;line-height:1.6;
+          padding:10px 12px;background:var(--bg);border:1px solid var(--bor);border-radius:4px;
+          color:var(--txt);resize:vertical;outline:none;transition:border-color .15s;"
+          onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--bor)'">${eh(iss.description||'')}</textarea>
+      </div>
+      <!-- Analyst notes -->
+      <div style="padding:0 16px 14px;">
+        <div style="font-family:var(--mono);font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">Analyst notes</div>
+        <textarea id="iss-notes-${id}" placeholder="Ongoing observations, hypotheses, questions — your running thinking on this issue…"
+          onchange="issUpdateNotes('${id}',this.value)"
+          style="width:100%;min-height:72px;font-family:var(--sans);font-size:12px;line-height:1.6;
+          padding:8px 12px;background:var(--bg);border:1px solid var(--bor);border-radius:4px;
+          color:var(--txt);resize:vertical;outline:none;transition:border-color .15s;"
+          onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--bor)'">${eh(iss.notes||'')}</textarea>
+      </div>
+    </div>
+
+    <!-- Attached items -->
+    <div class="iss-detail-card">
+      <div class="iss-card-title">
+        Connected items
+        <button onclick="issAddNote('${id}')" class="rbtn" style="font-size:10px;padding:3px 9px;">+ Add note</button>
+      </div>
+      <div class="iss-attached" id="iss-attached-${id}">
+        ${signals.length?`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-bottom:2px;">SIGNALS</div>${attachedHtml(signals,'Signal')}`:''}
+        ${clusters.length?`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin:6px 0 2px;">CLUSTERS</div>${attachedHtml(clusters,'Cluster')}`:''}
+        ${scenarios.length?`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin:6px 0 2px;">SCENARIOS</div>${attachedHtml(scenarios,'Scenario')}`:''}
+        ${notes.length?`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin:6px 0 2px;">NOTES</div>${attachedHtml(notes,'Note')}`:''}
+        ${!iss.attached.length?`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:8px 0;">Drag signals, clusters, or scenarios here to connect them.</div>`:''}
+      </div>
+      <!-- Drop zone -->
+      <div class="iss-drop-zone" id="iss-drop-${id}"
+        ondragover="event.preventDefault();this.classList.add('over')"
+        ondragleave="this.classList.remove('over')"
+        ondrop="issDrop(event,'${id}')">
+        Drop signals, clusters, or scenarios here to connect
+      </div>
+    </div>
+
+    <!-- Signal scanner -->
+    <div class="iss-detail-card">
+      <div class="iss-card-title">
+        Signal scanner
+        <div style="display:flex;gap:6px;">
+          <button onclick="issQuickScan('${id}')" class="rbtn" style="font-size:10px;padding:3px 9px;">Quick scan</button>
+          <button onclick="issDeepScan('${id}')" class="rbtn" style="font-size:10px;padding:3px 9px;background:var(--blue);color:#fff;border-color:var(--blue);">Deep scan ✦</button>
+        </div>
+      </div>
+      <div style="padding:10px 16px 14px;" id="iss-scan-${id}">
+        ${scanHtml}
+      </div>
+    </div>`;
+}
+
+// ── Editing ───────────────────────────────────────────────────
+function issRenameInline(id,labelEl){
+  const iss=issIssues.find(i=>i.id===id);if(!iss)return;
+  const inp=document.createElement('input');
+  inp.value=iss.name;
+  inp.style.cssText='font-family:var(--serif);font-size:14px;font-weight:700;border:1px solid var(--blue);border-radius:2px;padding:1px 6px;width:260px;outline:none;background:var(--sur);color:var(--txt);';
+  labelEl.replaceWith(inp);inp.focus();inp.select();
+  const done=()=>{
+    iss.name=inp.value.trim()||iss.name;
+    iss.updatedAt=new Date().toISOString();
+    issSave();issRenderList();issRenderDetail(id);
+  };
+  inp.addEventListener('blur',done);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter')inp.blur();if(e.key==='Escape'){inp.value=iss.name;inp.blur();}});
+}
+
+function issUpdateDesc(id,val){
+  const iss=issIssues.find(i=>i.id===id);if(!iss)return;
+  iss.description=val;iss.updatedAt=new Date().toISOString();issSave();
+}
+
+function issUpdateNotes(id,val){
+  const iss=issIssues.find(i=>i.id===id);if(!iss)return;
+  iss.notes=val;iss.updatedAt=new Date().toISOString();issSave();
+}
+
+function issAddNote(id){
+  const iss=issIssues.find(i=>i.id===id);if(!iss)return;
+  const text=prompt('Note text:','');if(!text||!text.trim())return;
+  iss.attached.push({id:'an_'+Date.now(),type:'note',label:text.trim(),addedAt:new Date().toISOString()});
+  iss.updatedAt=new Date().toISOString();
+  issSave();issRenderDetail(id);
+}
+
+// ── Drag & drop attachment ────────────────────────────────────
+function issDrop(e,issId){
+  e.preventDefault();
+  document.getElementById('iss-drop-'+issId)?.classList.remove('over');
+  try{
+    const data=JSON.parse(e.dataTransfer.getData('text/plain'));
+    const iss=issIssues.find(i=>i.id===issId);if(!iss)return;
+    let attachment=null;
+
+    if(data.type==='pool'||data.type==='sc2-signal'){
+      // Signal from cluster pool or scenario pool
+      const idx=data.idx;
+      const r=ROWS[idx];if(!r)return;
+      // Avoid duplicate
+      if(iss.attached.some(a=>a.type==='signal'&&a.ref===idx))return;
+      const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
+      attachment={id:'ia_'+Date.now(),type:'signal',ref:idx,label:txt.slice(0,200),addedAt:new Date().toISOString()};
+    } else if(data.type==='iss-cluster'){
+      const cl=clClusters.find(c=>c.id===data.clId);if(!cl)return;
+      if(iss.attached.some(a=>a.type==='cluster'&&a.ref===data.clId))return;
+      attachment={id:'ia_'+Date.now(),type:'cluster',ref:data.clId,label:cl.name,addedAt:new Date().toISOString()};
+    } else if(data.type==='iss-scenario'){
+      const fw=sc2Frameworks.find(f=>f.id===data.fwId);if(!fw)return;
+      if(iss.attached.some(a=>a.type==='scenario'&&a.ref===data.fwId))return;
+      attachment={id:'ia_'+Date.now(),type:'scenario',ref:data.fwId,label:fw.name,addedAt:new Date().toISOString()};
+    }
+
+    if(!attachment)return;
+    iss.attached.push(attachment);
+    iss.updatedAt=new Date().toISOString();
+    issSave();issRenderDetail(issId);
+  }catch(err){}
+}
+
+function issDetach(issId,attachId){
+  const iss=issIssues.find(i=>i.id===issId);if(!iss)return;
+  iss.attached=iss.attached.filter(a=>a.id!==attachId);
+  iss.updatedAt=new Date().toISOString();
+  issSave();issRenderDetail(issId);
+}
+
+function issOpenAttached(issId,attachId){
+  const iss=issIssues.find(i=>i.id===issId);if(!iss)return;
+  const a=iss.attached.find(x=>x.id===attachId);if(!a)return;
+  if(a.type==='signal'&&a.ref!==undefined)openSingleRaw(ROWS[a.ref]);
+}
+
+// ── Quick scan (keyword matching, instant) ────────────────────
+function issQuickScan(id){
+  const iss=issIssues.find(i=>i.id===id);if(!iss)return;
+  const text=(iss.name+' '+iss.description+' '+iss.notes).toLowerCase();
+  if(text.trim().length<10){
+    alert('Add a description to the issue first so the scanner has something to match against.');return;
+  }
+
+  // Extract meaningful words (3+ chars, not stopwords)
+  const stops=new Set(['the','and','for','are','but','not','you','all','can','had','her','was','one','our','out','day','get','has','him','his','how','its','may','nor','now','own','put','say','she','too','use','was','who','why','yet','have','this','that','with','from','they','been','were','than','then','when','into','them','some','what','will','your','just','more','also','does','even','like','most','over','such','well','only','very','their','there','these','those','could','about','after','other','would','which','being','both','each','from','have','here','much','need','same','should','since','still','than','that','them','then','they','this','time','under','until','upon','very','when','where','while','will','with','within','without','would','through']);
+  const keywords=text.split(/\W+/).filter(w=>w.length>=3&&!stops.has(w));
+  const kwSet=new Set(keywords);
+
+  // Also extract attached signal tags and entities
+  const attachedTags=new Set();
+  iss.attached.filter(a=>a.type==='signal').forEach(a=>{
+    const r=ROWS[a.ref];if(!r)return;
+    (r.tagList||[]).forEach(t=>attachedTags.add(t.toLowerCase()));
+    (r.entities||'').split(',').forEach(e=>attachedTags.add(e.trim().toLowerCase()));
+  });
+
+  // Score every row
+  const scored=ROWS.map((r,idx)=>{
+    const haystack=(r.content+' '+(r.aiSummary||'')+' '+(r.tags||'')+' '+(r.entities||'')).toLowerCase();
+    let score=0;
+    // Keyword hits
+    kwSet.forEach(kw=>{if(haystack.includes(kw))score+=1;});
+    // Tag overlap with already-attached signals
+    (r.tagList||[]).forEach(t=>{if(attachedTags.has(t.toLowerCase()))score+=2;});
+    // Entity overlap
+    (r.entities||'').split(',').forEach(e=>{if(attachedTags.has(e.trim().toLowerCase()))score+=2;});
+    // Theme match
+    const themeText=r.theme.toLowerCase();
+    kwSet.forEach(kw=>{if(themeText.includes(kw))score+=3;});
+    return{idx,score};
+  })
+  .filter(x=>x.score>0&&!iss.attached.some(a=>a.type==='signal'&&a.ref===x.idx))
+  .sort((a,b)=>b.score-a.score)
+  .slice(0,30);
+
+  const maxScore=scored[0]?.score||1;
+  iss.scanResults=scored.map(x=>({idx:x.idx,score:x.score/maxScore,why:''}));
+  iss.updatedAt=new Date().toISOString();
+  issSave();
+
+  // Re-render just the scan section
+  const scanEl=document.getElementById('iss-scan-'+id);if(!scanEl)return;
+  const html=iss.scanResults.slice(0,20).map(sr=>{
+    const r=ROWS[sr.idx];if(!r)return'';
+    const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
+    const pct=Math.round(sr.score*100);
+    return `<div class="iss-scan-result" onclick="openSingleRaw(ROWS[${sr.idx}])">
+      <div class="iss-scan-score">
+        <div class="iss-scan-bar" style="width:${Math.max(6,pct)}px;"></div>
+        <span>${pct}% match</span>
+        <span style="color:var(--txt3);">${r.theme}</span>
+        <span style="color:var(--txt3);">${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
+      </div>
+      <div style="font-size:11px;color:var(--txt);line-height:1.45;">${eh(txt.slice(0,200))}${txt.length>200?'…':''}</div>
+    </div>`;
+  }).join('');
+  scanEl.innerHTML=html||`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:12px 0;">No matching signals found. Try adding more detail to your issue description.</div>`;
+  scanEl.innerHTML+=`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:10px;">Quick scan · ${iss.scanResults.length} candidates · Click any to view · Drag to connect ↑</div>`;
+}
+
+// ── Deep scan (Claude-powered) ────────────────────────────────
+async function issDeepScan(id){
+  const iss=issIssues.find(i=>i.id===id);if(!iss)return;
+  if(!iss.description||iss.description.trim().length<20){
+    alert('Please add a description of at least a sentence or two so Claude has enough context to scan against.');return;
+  }
+
+  const scanEl=document.getElementById('iss-scan-'+id);if(!scanEl)return;
+  scanEl.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--txt2);padding:16px 0;text-align:center;">
+    <div class="spin" style="margin:0 auto 10px;"></div>
+    Running deep scan — asking Claude to find connections…
+  </div>`;
+
+  // First run quick scan to get top candidates
+  issQuickScan(id);
+  const candidates=iss.scanResults.slice(0,25);
+  if(!candidates.length){
+    scanEl.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:12px 0;">No candidates found. Add more detail to your issue description.</div>`;
+    return;
+  }
+
+  // Build candidate text for Claude
+  const candidateText=candidates.map((sr,i)=>{
+    const r=ROWS[sr.idx];if(!r)return'';
+    const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
+    const summary=r.aiSummary?` Summary: ${r.aiSummary}`:'';
+    return `[${i}] ${txt.slice(0,200)}${summary.slice(0,150)}`;
+  }).filter(Boolean).join('\n\n');
+
+  const prompt=`You are a strategic foresight analyst.
+
+A researcher is tracking this issue:
+ISSUE NAME: ${iss.name}
+DESCRIPTION: ${iss.description}
+${iss.notes?'ANALYST NOTES: '+iss.notes:''}
+
+Below are ${candidates.length} weak signals from their database. For each signal that genuinely connects to the issue, explain WHY it connects in one concise sentence. Skip signals with no meaningful connection.
+
+Respond ONLY with a JSON array. Each object: {"index": N, "relevance": 0.0-1.0, "why": "one sentence explanation"}
+Only include signals with relevance > 0.3.
+
+SIGNALS:
+${candidateText}`;
+
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-haiku-4-5-20251001',
+        max_tokens:1500,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+    const data=await res.json();
+    const raw=data.content[0].text.replace(/```json|```/g,'').trim();
+    const results=JSON.parse(raw);
+
+    // Merge Claude's relevance scores and explanations back
+    iss.scanResults=results
+      .filter(r=>r.relevance>0.3&&candidates[r.index])
+      .sort((a,b)=>b.relevance-a.relevance)
+      .map(r=>({
+        idx:candidates[r.index].idx,
+        score:r.relevance,
+        why:r.why||''
+      }));
+    iss.updatedAt=new Date().toISOString();
+    issSave();
+
+    // Re-render
+    const html=iss.scanResults.map(sr=>{
+      const r=ROWS[sr.idx];if(!r)return'';
+      const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
+      const pct=Math.round(sr.score*100);
+      return `<div class="iss-scan-result" onclick="openSingleRaw(ROWS[${sr.idx}])">
+        <div class="iss-scan-score">
+          <div class="iss-scan-bar" style="width:${Math.max(6,pct)}px;background:var(--blue);"></div>
+          <span style="color:var(--blue);font-weight:500;">${pct}% relevant</span>
+          <span style="color:var(--txt3);">${r.theme}</span>
+          <span style="color:var(--txt3);">${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
+        </div>
+        <div style="font-size:11px;color:var(--txt);line-height:1.45;">${eh(txt.slice(0,200))}${txt.length>200?'…':''}</div>
+        ${sr.why?`<div class="iss-scan-why">↳ ${eh(sr.why)}</div>`:''}
+        <button onclick="event.stopPropagation();issAttachFromScan('${id}',${sr.idx})"
+          style="margin-top:6px;font-family:var(--mono);font-size:9px;padding:2px 8px;
+          border:1px solid var(--bor);border-radius:3px;background:none;cursor:pointer;
+          color:var(--txt2);transition:all .12s;"
+          onmouseover="this.style.background='var(--blue)';this.style.color='#fff'"
+          onmouseout="this.style.background='none';this.style.color='var(--txt2)'">
+          + Connect to issue
+        </button>
+      </div>`;
+    }).join('');
+
+    scanEl.innerHTML=(html||`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:12px 0;">Claude found no strong connections. Try refining your issue description.</div>`)
+      +`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:10px;">Deep scan ✦ ${iss.scanResults.length} connections found · Click any to view detail</div>`;
+
+  }catch(err){
+    scanEl.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:12px 0;">
+      Deep scan failed — ${err.message}<br><br>
+      <span style="font-size:10px;">Tip: make sure you're using Claude.ai which handles API access automatically.</span>
+    </div>`;
+  }
+}
+
+function issAttachFromScan(issId,sigIdx){
+  const iss=issIssues.find(i=>i.id===issId);if(!iss)return;
+  if(iss.attached.some(a=>a.type==='signal'&&a.ref===sigIdx))return;
+  const r=ROWS[sigIdx];if(!r)return;
+  const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
+  iss.attached.push({id:'ia_'+Date.now(),type:'signal',ref:sigIdx,label:txt.slice(0,200),addedAt:new Date().toISOString()});
+  iss.updatedAt=new Date().toISOString();
+  issSave();
+  // Re-render attached section only
+  const attachedEl=document.getElementById('iss-attached-'+issId);
+  if(attachedEl)issRenderDetail(issId);
+  else issRenderDetail(issId);
+}
+
+// ── Export ────────────────────────────────────────────────────
+function issExport(id){
+  const iss=issIssues.find(i=>i.id===id);if(!iss)return;
+  // Build rich export with signal snapshots
+  const exported={
+    ...iss,
+    exportedAt:new Date().toISOString(),
+    attachedSnapshots:iss.attached.map(a=>{
+      if(a.type!=='signal')return a;
+      const r=ROWS[a.ref];if(!r)return a;
+      return{...a,snapshot:{url:r.url,content:r.content,theme:r.theme,date:r.date.toISOString(),tags:r.tags,aiSummary:r.aiSummary||'',entities:r.entities||''}};
+    })
+  };
+  const blob=new Blob([JSON.stringify(exported,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='issue-'+iss.name.replace(/[^a-z0-9]/gi,'-').toLowerCase()+'-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();URL.revokeObjectURL(a.href);
+}
 
 loadAll();
 </script>
