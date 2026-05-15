@@ -3027,19 +3027,50 @@ ${candidateText}`;
     let usedClaude=false;
 
     if(appsScriptUrl&&appsScriptToken){
-      // Send prompt via GET parameter — Apps Script doGet handles this reliably
-      // Prompt is chunked to stay under URL limits
+      // Send prompt via GET parameter
       const params=new URLSearchParams({
         action:'claudeProxy',
         token:appsScriptToken,
-        prompt:prompt.slice(0,4000), // keep under URL limit
+        prompt:prompt.slice(0,4000),
         maxTokens:'1500'
       });
       const proxyUrl=`${appsScriptUrl}?${params.toString()}`;
-      const res=await fetch(proxyUrl);
-      if(!res.ok)throw new Error('Proxy returned HTTP '+res.status);
-      const data=await res.json();
-      if(!data.success)throw new Error(data.error||'Proxy error');
+      let res;
+      try{
+        res=await fetch(proxyUrl);
+      }catch(fetchErr){
+        // Network/CORS error — show it
+        scanEl.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:12px 0;">
+          <strong style="color:#C84B2F;">Deep scan network error:</strong><br>${fetchErr.message}<br><br>
+          <strong>Most likely cause:</strong> Apps Script needs to be redeployed after adding handleClaudeProxy.<br>
+          In Apps Script: Deploy → Manage deployments → edit the existing deployment → Deploy again.
+        </div>`;
+        return;
+      }
+      if(!res.ok){
+        scanEl.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:12px 0;">
+          <strong style="color:#C84B2F;">Deep scan HTTP error: ${res.status}</strong><br>
+          Check that your Apps Script URL is correct in ⚙ settings.
+        </div>`;
+        return;
+      }
+      let data;
+      try{
+        data=await res.json();
+      }catch(jsonErr){
+        scanEl.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:12px 0;">
+          <strong style="color:#C84B2F;">Deep scan parse error:</strong><br>Apps Script returned non-JSON response.<br>
+          Make sure you redeployed after adding handleClaudeProxy.
+        </div>`;
+        return;
+      }
+      if(!data.success){
+        scanEl.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:12px 0;">
+          <strong style="color:#C84B2F;">Deep scan error from Apps Script:</strong><br>${data.error||'Unknown error'}<br><br>
+          Check the Apps Script execution log for details.
+        </div>`;
+        return;
+      }
       const raw=data.text.replace(/```json|```/g,'').trim();
       results=JSON.parse(raw);
       usedClaude=true;
@@ -3090,20 +3121,13 @@ ${candidateText}`;
       +`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:10px;border-top:1px solid var(--bor);padding-top:8px;">${scanLabel}</div>`;
 
   }catch(err){
-    // Fall back to enhanced quick scan
-    const fallback=issEnhancedScan(iss,candidates);
-    iss.scanResults=fallback
-      .sort((a,b)=>b.relevance-a.relevance)
-      .map(r=>({idx:candidates[r.index].idx,score:r.relevance,why:r.why}));
-    issSave();
-    issRenderDetail(id);
-    const scanEl2=document.getElementById('iss-scan-'+id);
-    if(scanEl2){
-      const note=document.createElement('div');
-      note.style.cssText='font-family:var(--mono);font-size:9px;color:var(--txt3);padding:8px 0;border-top:1px solid var(--bor);margin-top:8px;';
-      note.textContent='Showing keyword-based scan. For Claude-powered analysis, click ⚙ in the header and enter your Apps Script URL and token.';
-      scanEl2.appendChild(note);
-    }
+    scanEl.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:12px 0;">
+      <strong style="color:#C84B2F;">Deep scan failed:</strong><br>${err.message}<br><br>
+      <strong>Things to check:</strong><br>
+      1. Did you redeploy your Apps Script after adding handleClaudeProxy?<br>
+      2. Is the URL in ⚙ settings your web app URL (ends in /exec)?<br>
+      3. Does the token match SECRET_TOKEN in your Apps Script?
+    </div>`;
   }
 }
 
