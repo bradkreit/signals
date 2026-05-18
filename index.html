@@ -2888,10 +2888,8 @@ function issDrop(e,issId){
     let attachment=null;
 
     if(data.type==='pool'||data.type==='sc2-signal'){
-      // Signal from cluster pool or scenario pool
       const idx=data.idx;
       const r=ROWS[idx];if(!r)return;
-      // Avoid duplicate
       if(iss.attached.some(a=>a.type==='signal'&&a.ref===idx))return;
       const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
       attachment={id:'ia_'+Date.now(),type:'signal',ref:idx,label:txt.slice(0,200),addedAt:new Date().toISOString()};
@@ -2903,8 +2901,6 @@ function issDrop(e,issId){
       const fw=sc2Frameworks.find(f=>f.id===data.fwId);if(!fw)return;
       if(iss.attached.some(a=>a.type==='scenario'&&a.ref===data.fwId))return;
       attachment={id:'ia_'+Date.now(),type:'scenario',ref:data.fwId,label:fw.name,addedAt:new Date().toISOString()};
-    }
-
     } else if(data.type==='iss-baseline'){
       const b=blAllBaselines().find(x=>x.id===data.blId);if(!b)return;
       if(iss.attached.some(a=>a.type==='baseline'&&a.ref===data.blId))return;
