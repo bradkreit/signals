@@ -1121,10 +1121,10 @@ function render(){
     const parseWD=x=>{const p=x.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);return p?new Date(p[3]+'-'+p[1].padStart(2,'0')+'-'+p[2].padStart(2,'0')):new Date(x);};
     const[ws,we2]=[parseWD(wparts[0]),parseWD(wparts[1])];
     const wkr=rows.filter(r=>r.date>=ws&&r.date<=new Date(we2.getTime()+864e5));
-    const lines=s.text.split('\n').map(l=>l.trim()).filter(l=>l);
-    const buls=lines.filter(l=>/^\*\s/.test(l)).slice(0,4).map(l=>l.replace(/^\*+\s*/,'').replace(/\*\*/g,'').trim()).filter(l=>l.length>10);
+    // Parse Claude-generated markdown: handle *, -, ##, numbered lists, bold
+    const preview=wkSummaryPreview(s.text);
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td><span style="font-family:var(--mono);font-size:11px;color:var(--txt2);">${eh(s.week)}</span><br><span style="font-size:10px;color:var(--txt3);">${wkr.length} signals</span></td><td><div class="wthemes" style="display:flex;flex-wrap:wrap;gap:5px;">${mth.map(td=>`<span class="tbadge" style="background:${td.bg};color:${td.fg};">${td.n.split(' ').slice(0,2).join(' ')}</span>`).join('')}</div></td><td><ul style="padding-left:14px;display:flex;flex-direction:column;gap:2px;">${buls.slice(0,3).map(b=>`<li>${eh(b.slice(0,110))}${b.length>110?'…':''}</li>`).join('')}</ul></td>`;
+    tr.innerHTML=`<td><span style="font-family:var(--mono);font-size:11px;color:var(--txt2);">${eh(s.week)}</span><br><span style="font-size:10px;color:var(--txt3);">${wkr.length} signals</span></td><td><div class="wthemes" style="display:flex;flex-wrap:wrap;gap:5px;">${mth.map(td=>`<span class="tbadge" style="background:${td.bg};color:${td.fg};">${td.n.split(' ').slice(0,2).join(' ')}</span>`).join('')}</div></td><td>${preview}</td>`;
     tr.onclick=()=>openWeek(s,wkr);
     wbEl.appendChild(tr);
   });
@@ -1350,14 +1350,86 @@ function _openSingleSignal(r){
   document.getElementById('drw').classList.add('open');
 }
 
+// Parse Claude-generated markdown summary into display HTML
+function wkMarkdownToHtml(text){
+  if(!text)return '';
+  const lines=text.split('\n');
+  let html='';
+  let inList=false;
+
+  const stripMd=s=>s
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/`(.+?)`/g,'<code style="font-family:var(--mono);font-size:11px;background:var(--sur2);padding:1px 4px;border-radius:2px;">$1</code>');
+
+  lines.forEach(raw=>{
+    const l=raw.trim();
+    if(!l){if(inList){html+='</ul>';inList=false;}return;}
+
+    // Headers
+    if(/^#{1,3}\s/.test(l)){
+      if(inList){html+='</ul>';inList=false;}
+      const lvl=l.match(/^#+/)[0].length;
+      const txt=l.replace(/^#+\s*/,'');
+      const sz=lvl===1?'14px':lvl===2?'13px':'12px';
+      html+=`<div style="font-family:var(--serif);font-size:${sz};font-weight:700;margin:12px 0 6px;color:var(--txt);">${eh(txt)}</div>`;
+      return;
+    }
+
+    // Bullet points — *, -, •
+    if(/^[\*\-•]\s+/.test(l)){
+      if(!inList){html+='<ul style="padding-left:18px;margin:4px 0;display:flex;flex-direction:column;gap:3px;">';inList=true;}
+      const txt=l.replace(/^[\*\-•]\s+/,'');
+      html+=`<li style="font-size:12px;line-height:1.5;">${stripMd(eh(txt))}</li>`;
+      return;
+    }
+
+    // Numbered lists
+    if(/^\d+[\.\)]\s+/.test(l)){
+      if(!inList){html+='<ol style="padding-left:18px;margin:4px 0;display:flex;flex-direction:column;gap:3px;">';inList=true;}
+      const txt=l.replace(/^\d+[\.\)]\s+/,'');
+      html+=`<li style="font-size:12px;line-height:1.5;">${stripMd(eh(txt))}</li>`;
+      return;
+    }
+
+    // Prose paragraph
+    if(inList){html+='</ul>';inList=false;}
+    if(l.length>0){
+      html+=`<p style="font-size:13px;line-height:1.65;margin:4px 0;">${stripMd(eh(l))}</p>`;
+    }
+  });
+  if(inList)html+='</ul>';
+  return html;
+}
+
+// Extract a short preview (3 bullets or first 2 sentences) for the table row
+function wkSummaryPreview(text){
+  if(!text)return '<span style="color:var(--txt3);font-size:11px;">No summary</span>';
+  const lines=text.split('\n').map(l=>l.trim()).filter(l=>l);
+  // Prefer bullet points
+  const bullets=lines.filter(l=>/^[\*\-•]\s+/.test(l))
+    .map(l=>l.replace(/^[\*\-•]\s+/,'').replace(/\*\*/g,'').trim())
+    .filter(l=>l.length>10)
+    .slice(0,3);
+  if(bullets.length){
+    return `<ul style="padding-left:14px;display:flex;flex-direction:column;gap:2px;">${bullets.map(b=>`<li style="font-size:11px;">${eh(b.slice(0,120))}${b.length>120?'…':''}</li>`).join('')}</ul>`;
+  }
+  // Fall back to prose sentences
+  const prose=lines.filter(l=>!l.startsWith('#')&&l.length>30).slice(0,2);
+  return prose.map(p=>`<p style="font-size:11px;color:var(--txt2);margin-bottom:3px;">${eh(p.replace(/\*\*/g,'').slice(0,150))}${p.length>150?'…':''}</p>`).join('');
+}
+
 function openWeek(s,wkr){
   document.getElementById('dtitle').textContent='Week of '+s.week;
   document.getElementById('dsub').textContent=wkr.length+' signals this week';
   document.getElementById('dfilt').style.display='none';document.getElementById('dcnt').textContent='';
-  const lines=s.text.split('\n').map(l=>l.trim()).filter(l=>l);
-  const buls=lines.filter(l=>/^\*/.test(l)).map(l=>l.replace(/^\*+\s*/,'').replace(/\*\*/g,''));
-  const prose=lines.filter(l=>!l.startsWith('*')&&!l.startsWith('-')&&!l.startsWith('#')&&l.length>40).slice(0,3);
-  document.getElementById('dbody').innerHTML=`<div class="wsec"><h4>Executive synthesis</h4>${prose.map(p=>`<p>${eh(p)}</p>`).join('')}${buls.length?`<ul>${buls.map(b=>`<li>${eh(b)}</li>`).join('')}</ul>`:''}</div>${wkr.length?`<div class="wsec" style="margin-top:20px;"><h4>${wkr.length} signals from this week</h4>${wkr.map(r=>cHtml(r,false)).join('')}</div>`:''}`;
+  const summaryHtml=wkMarkdownToHtml(s.text);
+  document.getElementById('dbody').innerHTML=`
+    <div class="wsec">
+      <h4 style="font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--txt3);margin-bottom:12px;">Executive synthesis</h4>
+      ${summaryHtml||'<p style="color:var(--txt3);font-size:12px;">No summary available for this week.</p>'}
+    </div>
+    ${wkr.length?`<div class="wsec" style="margin-top:20px;"><h4 style="font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--txt3);margin-bottom:12px;">${wkr.length} signals from this week</h4>${wkr.map(r=>cHtml(r,false)).join('')}</div>`:''}`;
   document.getElementById('ov').classList.add('open');
   document.getElementById('drw').classList.add('open');
 }
@@ -3612,9 +3684,12 @@ function blRenderDetail(id){
     <!-- Chart -->
     <div class="iss-detail-card" style="margin-bottom:12px;">
       <div class="iss-card-title">Projection chart
-        <span style="font-family:var(--sans);font-size:10px;color:var(--txt3);font-weight:400;text-transform:none;letter-spacing:0;">
-          ${b.logScale?'Log scale · ':''} Drag signals from your database onto the chart year range
-        </span>
+        <div style="display:flex;align-items:center;gap:10px;">
+          ${b.logScale?'<span style="font-family:var(--sans);font-size:10px;color:var(--txt3);">Log scale</span>':''}
+          <button onclick="blToggleSignalPanel('${id}')" class="rbtn" style="font-size:10px;padding:3px 10px;">
+            ＋ Overlay signals
+          </button>
+        </div>
       </div>
       <div style="padding:12px 16px 16px;">
         <div style="position:relative;height:300px;">
@@ -3623,36 +3698,35 @@ function blRenderDetail(id){
       </div>
     </div>
 
-    <!-- Signal overlay -->
-    <div class="iss-detail-card" style="margin-bottom:12px;">
-      <div class="iss-card-title">Signal overlay
+    <!-- Signal overlay — connected signals -->
+    <div class="iss-detail-card" style="margin-bottom:12px;" id="bl-connected-card-${id}">
+      <div class="iss-card-title">Connected signals
         <span style="font-family:var(--sans);font-size:10px;color:var(--txt3);font-weight:400;text-transform:none;letter-spacing:0;">
-          Connect signals to this projection for context
+          Context for this projection
         </span>
       </div>
-      <div style="padding:8px 16px;" id="bl-signal-list">
-        <div style="font-family:var(--mono);font-size:11px;color:var(--txt3);">No signals connected yet.</div>
+      <div style="padding:8px 16px 12px;" id="bl-signal-list"></div>
+    </div>
+
+    <!-- Slide-in signal browser panel -->
+    <div id="bl-sig-panel-${id}" style="display:none;background:var(--sur);border:1px solid var(--bor);border-radius:6px;margin-bottom:12px;overflow:hidden;">
+      <div style="padding:10px 14px;border-bottom:1px solid var(--bor);display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--txt3);">Add signals to overlay</span>
+        <button onclick="blToggleSignalPanel('${id}')" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--txt3);">✕</button>
       </div>
-      <div class="iss-drop-zone" id="bl-signal-drop"
-        ondragover="event.preventDefault();this.classList.add('over')"
-        ondragleave="this.classList.remove('over')"
-        ondrop="blDropSignal(event,'${id}')">
-        Drop signals here to connect them to this projection
+      <div style="padding:8px 12px;border-bottom:1px solid var(--bor);">
+        <input type="text" placeholder="Filter signals…" oninput="blFilterSignalPanel(this.value,'${id}')"
+          style="width:100%;font-family:var(--mono);font-size:11px;padding:5px 9px;border:1px solid var(--bor);border-radius:3px;background:var(--bg);color:var(--txt);outline:none;">
       </div>
+      <div id="bl-sig-panel-list-${id}" style="max-height:280px;overflow-y:auto;padding:8px 10px;display:flex;flex-direction:column;gap:4px;"></div>
     </div>
 
     <!-- Drag handle for issues/clusters/scenarios -->
-    <div style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;padding:12px 16px;
-      display:flex;align-items:center;justify-content:space-between;">
-      <div style="font-family:var(--mono);font-size:10px;color:var(--txt3);">
-        Connect this projection to your other work
-      </div>
-      <div style="display:flex;gap:8px;">
-        <div draggable="true" ondragstart="blDragStart(event,'${id}')"
-          style="font-family:var(--mono);font-size:10px;padding:5px 12px;background:${sc.bg};
-          color:${sc.fg};border:1px solid ${sc.c};border-radius:3px;cursor:grab;user-select:none;">
-          ⠿ Drag to Issue / Cluster / Scenario
-        </div>
+    <div style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--txt3);">Connect this projection to your other work</div>
+      <div draggable="true" ondragstart="blDragStart(event,'${id}')"
+        style="font-family:var(--mono);font-size:10px;padding:5px 12px;background:${sc.bg};color:${sc.fg};border:1px solid ${sc.c};border-radius:3px;cursor:grab;user-select:none;">
+        ⠿ Drag to Issue / Cluster / Scenario
       </div>
     </div>`;
 
@@ -3788,7 +3862,69 @@ function blToggleCI(){
   blDrawChart(b,cb.checked);
 }
 
-// ── Signal overlay ────────────────────────────────────────────
+// ── Signal overlay panel ──────────────────────────────────────
+function blToggleSignalPanel(blId){
+  const panel=document.getElementById('bl-sig-panel-'+blId);
+  if(!panel)return;
+  const isOpen=panel.style.display!=='none';
+  panel.style.display=isOpen?'none':'block';
+  if(!isOpen)blRenderSignalPanelList('',blId);
+}
+
+function blFilterSignalPanel(q,blId){
+  blRenderSignalPanelList(q,blId);
+}
+
+function blRenderSignalPanelList(q,blId){
+  const list=document.getElementById('bl-sig-panel-list-'+blId);if(!list)return;
+  const ovs=blGetOverlays();
+  const already=new Set(ovs[blId]||[]);
+  q=(q||'').toLowerCase().trim();
+
+  const visible=ROWS.filter(r=>{
+    if(already.has(r.idx))return false; // already connected
+    if(!q)return true;
+    return(r.content+' '+(r.aiSummary||'')+' '+r.theme+' '+r.tags).toLowerCase().includes(q);
+  }).slice(0,60);
+
+  if(!visible.length){
+    list.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:8px;">${q?'No matching signals.':'All signals already connected, or none available.'}</div>`;
+    return;
+  }
+
+  list.innerHTML='';
+  visible.forEach(r=>{
+    const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};
+    const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
+    const el=document.createElement('div');
+    el.style.cssText=`display:flex;align-items:flex-start;gap:8px;padding:6px 8px;background:var(--sur2);
+      border:1px solid var(--bor);border-left:3px solid ${td.c};border-radius:4px;cursor:pointer;transition:background .12s;`;
+    el.innerHTML=`
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11px;color:var(--txt);line-height:1.4;">${eh(txt.slice(0,120))}${txt.length>120?'…':''}</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:2px;">${r.theme.split(' ')[0]} · ${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+      </div>
+      <button style="font-family:var(--mono);font-size:9px;padding:2px 8px;border:1px solid var(--bor);border-radius:3px;background:var(--sur);color:var(--blue);cursor:pointer;flex-shrink:0;white-space:nowrap;">
+        + Add
+      </button>`;
+    el.querySelector('button').addEventListener('click',e=>{
+      e.stopPropagation();
+      const ovs=blGetOverlays();
+      if(!ovs[blId])ovs[blId]=[];
+      if(!ovs[blId].includes(r.idx)){
+        ovs[blId].push(r.idx);
+        blSaveOverlays(ovs);
+        blRenderSignalOverlay(blId);
+        // Remove from panel list
+        el.remove();
+      }
+    });
+    el.addEventListener('click',()=>openSingleRaw(r));
+    list.appendChild(el);
+  });
+}
+
+// ── Signal overlay rendering ──────────────────────────────────
 // Store signal overlays in localStorage per baseline
 const BL_OVERLAY_KEY='weaksig_bl_overlays_v1';
 function blGetOverlays(){
@@ -3820,7 +3956,7 @@ function blRenderSignalOverlay(blId){
   const ovs=blGetOverlays();
   const sigIdxs=ovs[blId]||[];
   if(!sigIdxs.length){
-    el.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:4px 0;">No signals connected yet. Drop signals from the browser into the zone below.</div>`;
+    el.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);">No signals connected yet. Click <strong>＋ Overlay signals</strong> above to browse and add.</div>`;
     return;
   }
   el.innerHTML=sigIdxs.map((idx,i)=>{
@@ -3830,7 +3966,7 @@ function blRenderSignalOverlay(blId){
     return `<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--bor);">
       <span style="font-family:var(--mono);font-size:9px;background:${td.bg};color:${td.fg};padding:1px 6px;border-radius:2px;flex-shrink:0;margin-top:2px;">${r.theme.split(' ')[0]}</span>
       <span style="font-size:11px;color:var(--txt);line-height:1.4;flex:1;cursor:pointer;" onclick="openSingleRaw(ROWS[${idx}])">${eh(txt.slice(0,160))}${txt.length>160?'…':''}</span>
-      <button onclick="blRemoveSignal('${blId}',${idx})" style="background:none;border:none;cursor:pointer;color:var(--txt3);font-size:11px;flex-shrink:0;">✕</button>
+      <button onclick="blRemoveSignal('${blId}',${idx})" style="background:none;border:none;cursor:pointer;color:var(--txt3);font-size:11px;flex-shrink:0;" title="Remove">✕</button>
     </div>`;
   }).join('');
 }
@@ -3840,9 +3976,11 @@ function blRemoveSignal(blId,idx){
   if(ovs[blId])ovs[blId]=ovs[blId].filter(i=>i!==idx);
   blSaveOverlays(ovs);
   blRenderSignalOverlay(blId);
+  // Refresh panel list if open so removed signal reappears
+  const panelInput=document.querySelector('#bl-sig-panel-'+blId+' input');
+  blRenderSignalPanelList(panelInput?.value||'',blId);
 }
 
-// ── Drag baseline to issues/clusters/scenarios ────────────────
 function blDragStart(e,blId){
   const b=blAllBaselines().find(x=>x.id===blId);if(!b)return;
   e.dataTransfer.setData('text/plain',JSON.stringify({
