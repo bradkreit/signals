@@ -3746,24 +3746,28 @@ function blDrawChart(b,showCI=false){
   const allYears=b.data.map(d=>d.y);
   const datasets=[];
 
-  // CI band (hi)
+  // CI band (hi) — upper bound with visible fill
   if(showCI&&b.hi){
     datasets.push({
       label:'High estimate',
       data:b.hi.map(d=>({x:d.y,y:d.v})),
-      borderColor:'transparent',
-      backgroundColor:'rgba(45,95,160,0.08)',
+      borderColor:'rgba(100,130,180,0.7)',
+      borderWidth:1.5,
+      borderDash:[4,3],
+      backgroundColor:'rgba(100,130,180,0.15)',
       fill:'+1',
       pointRadius:0,tension:0.4,order:3
     });
   }
-  // CI band (lo)
+  // CI band (lo) — lower bound, fills to hi creating the shaded region
   if(showCI&&b.lo){
     datasets.push({
       label:'Low estimate',
       data:b.lo.map(d=>({x:d.y,y:d.v})),
-      borderColor:'transparent',
-      backgroundColor:'rgba(45,95,160,0.08)',
+      borderColor:'rgba(100,130,180,0.7)',
+      borderWidth:1.5,
+      borderDash:[4,3],
+      backgroundColor:'rgba(100,130,180,0.15)',
       fill:false,
       pointRadius:0,tension:0.4,order:3
     });
@@ -3826,6 +3830,7 @@ function blDrawChart(b,showCI=false){
           borderColor:'#E2DDD5',
           borderWidth:1,
           callbacks:{
+            title:items=>'Year: '+items[0].parsed.x,
             label:ctx=>`${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} ${b.unit}`
           }
         }
@@ -3835,7 +3840,10 @@ function blDrawChart(b,showCI=false){
           type:'linear',
           title:{display:true,text:'Year',color:'#9C9890',font:{size:10,family:'DM Mono'}},
           grid:{color:'rgba(0,0,0,0.05)'},
-          ticks:{color:'#9C9890',font:{size:10},stepSize:10}
+          ticks:{
+            color:'#9C9890',font:{size:10},stepSize:10,
+            callback:v=>String(Math.round(v))
+          }
         },
         y:{
           type:b.logScale?'logarithmic':'linear',
@@ -4076,7 +4084,7 @@ function openDashSettings(){
   const cfg=getDashConfig();
   document.getElementById('setting-apps-url').value=cfg.appsScriptUrl||'';
   document.getElementById('setting-apps-token').value=cfg.appsScriptToken||'';
-  document.getElementById('dash-settings-ov').style.display='block';
+  document.getElementById('dash-settings-ov').style.display='block';https://github.com/bradkreit/signals/blob/main/index.html
   document.getElementById('dash-settings-panel').style.display='block';
 }
 
