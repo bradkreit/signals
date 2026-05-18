@@ -240,6 +240,7 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
       <div class="tab" onclick="sw('cl')">Clusters</div>
       <div class="tab" onclick="sw('sc2')">Scenarios</div>
       <div class="tab" onclick="sw('iss')">Issues</div>
+      <div class="tab" onclick="sw('bl')">Baselines</div>
     </div>
     <div class="tp active" id="tp-ov">
       <div id="search-results" style="display:none;margin-bottom:16px;">
@@ -545,6 +546,8 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
               style="flex:1;font-family:var(--mono);font-size:9px;padding:7px 4px;border:none;border-bottom:2px solid transparent;background:var(--sur);color:var(--txt3);cursor:pointer;letter-spacing:.05em;text-transform:uppercase;">Clusters</button>
             <button id="iss-tab-scenarios" onclick="issSetBrowserTab('scenarios')"
               style="flex:1;font-family:var(--mono);font-size:9px;padding:7px 4px;border:none;border-bottom:2px solid transparent;background:var(--sur);color:var(--txt3);cursor:pointer;letter-spacing:.05em;text-transform:uppercase;">Scenarios</button>
+            <button id="iss-tab-baselines" onclick="issSetBrowserTab('baselines')"
+              style="flex:1;font-family:var(--mono);font-size:9px;padding:7px 4px;border:none;border-bottom:2px solid transparent;background:var(--sur);color:var(--txt3);cursor:pointer;letter-spacing:.05em;text-transform:uppercase;">Baselines</button>
           </div>
           <div id="iss-browser-list" style="overflow-y:auto;max-height:560px;padding:8px 10px;display:flex;flex-direction:column;gap:5px;"></div>
           <div style="padding:8px 12px;border-top:1px solid var(--bor);font-family:var(--mono);font-size:9px;color:var(--txt3);line-height:1.5;">
@@ -552,6 +555,30 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
           </div>
         </div>
 
+      </div>
+    </div>
+
+    <!-- ── Baselines tab ── -->
+    <div class="tp" id="tp-bl">
+      <div style="display:grid;grid-template-columns:240px 1fr;gap:16px;align-items:start;min-height:700px;">
+        <!-- Left: baseline library -->
+        <div style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;overflow:hidden;position:sticky;top:16px;">
+          <div style="padding:12px 14px;border-bottom:1px solid var(--bor);display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3);">Projections</span>
+            <button onclick="blNewCustom()" class="rbtn" style="font-size:10px;padding:3px 9px;">+ Custom</button>
+          </div>
+          <input type="text" id="bl-search" placeholder="Filter projections…" oninput="blFilterList(this.value)"
+            style="width:100%;font-family:var(--mono);font-size:11px;padding:8px 14px;border:none;border-bottom:1px solid var(--bor);background:var(--bg);color:var(--txt);outline:none;">
+          <div id="bl-list" style="overflow-y:auto;max-height:620px;"></div>
+        </div>
+        <!-- Right: chart + overlay -->
+        <div id="bl-detail">
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:400px;color:var(--txt3);font-family:var(--mono);font-size:12px;text-align:center;gap:8px;">
+            <div style="font-size:28px;">📈</div>
+            <div>Select a projection from the library</div>
+            <div style="font-size:10px;">View long-term trends · overlay your signals · connect to issues</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1339,13 +1366,14 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeD();});
 function sw(name){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.tp').forEach(p=>p.classList.remove('active'));
-  const idx=['ov','hm','wk','net','cl','sc2','iss'].indexOf(name);
+  const idx=['ov','hm','wk','net','cl','sc2','iss','bl'].indexOf(name);
   document.querySelectorAll('.tab')[idx].classList.add('active');
   document.getElementById('tp-'+name).classList.add('active');
   if(name==='net')renderNet('theme');
   if(name==='cl')initCluster();
   if(name==='sc2')sc2Init();
   if(name==='iss')issInit();
+  if(name==='bl')blInit();
 }
 
 // ── Cluster board ─────────────────────────────────────────────
@@ -2877,7 +2905,12 @@ function issDrop(e,issId){
       attachment={id:'ia_'+Date.now(),type:'scenario',ref:data.fwId,label:fw.name,addedAt:new Date().toISOString()};
     }
 
-    if(!attachment)return;
+    } else if(data.type==='iss-baseline'){
+      const b=blAllBaselines().find(x=>x.id===data.blId);if(!b)return;
+      if(iss.attached.some(a=>a.type==='baseline'&&a.ref===data.blId))return;
+      attachment={id:'ia_'+Date.now(),type:'baseline',ref:data.blId,
+        label:b.name+' ('+b.steep+')',addedAt:new Date().toISOString()};
+    }
     iss.attached.push(attachment);
     iss.updatedAt=new Date().toISOString();
     issSave();
@@ -3156,7 +3189,7 @@ let issBrowserTab='signals';
 
 function issSetBrowserTab(tab){
   issBrowserTab=tab;
-  ['signals','clusters','scenarios'].forEach(t=>{
+  ['signals','clusters','scenarios','baselines'].forEach(t=>{
     const btn=document.getElementById('iss-tab-'+t);
     if(!btn)return;
     btn.style.borderBottom=t===tab?'2px solid var(--blue)':'2px solid transparent';
@@ -3235,10 +3268,23 @@ function issRenderBrowser(q=''){
       el.addEventListener('dragend',()=>{el.style.opacity='1';});
       list.appendChild(el);
     });
+  } else if(issBrowserTab==='baselines'){
+    const all=blAllBaselines().filter(b=>!q||b.name.toLowerCase().includes(q)||b.steep.toLowerCase().includes(q));
+    if(!all.length){list.innerHTML=`<div style="font-family:var(--mono);font-size:10px;color:var(--txt3);padding:8px;">No baselines found. Visit the Baselines tab to browse projections.</div>`;return;}
+    all.forEach(b=>{
+      const sc=BL_STEEP_COLORS[b.steep]||BL_STEEP_COLORS.Custom;
+      const el=document.createElement('div');
+      el.style.cssText=`padding:8px 10px;background:${sc.bg};border:1.5px solid ${sc.c};border-radius:4px;cursor:grab;user-select:none;margin-bottom:4px;`;
+      el.innerHTML=`<div style="font-size:11px;font-weight:500;color:var(--txt);">${eh(b.name)}</div>
+        <div style="font-family:var(--mono);font-size:9px;color:${sc.fg};margin-top:2px;">${b.steep} · ${b.category||''}</div>`;
+      el.draggable=true;
+      el.title='Drag to connect baseline to this issue';
+      el.addEventListener('dragstart',e=>{blDragStart(e,b.id);el.style.opacity='0.4';});
+      el.addEventListener('dragend',()=>{el.style.opacity='1';});
+      list.appendChild(el);
+    });
   }
 }
-
-// Drag handler for scan result cards
 function issScanDragStart(e,sigIdx){
   e.dataTransfer.setData('text/plain',JSON.stringify({type:'pool',idx:sigIdx}));
   e.stopPropagation();
@@ -3278,21 +3324,29 @@ function issRenderAttached(issId){
   const signals=iss.attached.filter(a=>a.type==='signal');
   const clusters=iss.attached.filter(a=>a.type==='cluster');
   const scenarios=iss.attached.filter(a=>a.type==='scenario');
+  const baselines=iss.attached.filter(a=>a.type==='baseline');
   const notes=iss.attached.filter(a=>a.type==='note');
 
-  const itemHtml=(items,typeLabel,typeBg='var(--sur2)',typeFg='var(--txt3)')=>items.map(a=>`
-    <div class="iss-attached-item">
-      <span class="iss-attached-type" style="color:${typeFg};">${typeLabel}</span>
-      <span class="iss-attached-text" onclick="issOpenAttached('${issId}','${a.id}')" style="cursor:pointer;">${eh((a.label||'').slice(0,160))}${(a.label||'').length>160?'…':''}</span>
+  const itemHtml=(items,typeLabel)=>items.map(a=>{
+    // Baselines get a click handler that jumps to the Baselines tab
+    const clickHandler=a.type==='baseline'
+      ?`onclick="sw('bl');setTimeout(()=>blSelect('${a.ref}'),100)"`
+      :`onclick="issOpenAttached('${issId}','${a.id}')"`;
+    const sc=a.type==='baseline'?(BL_STEEP_COLORS[blAllBaselines().find(b=>b.id===a.ref)?.steep]||BL_STEEP_COLORS.Custom):null;
+    return `<div class="iss-attached-item">
+      <span class="iss-attached-type" ${sc?`style="color:${sc.fg};background:${sc.bg};padding:1px 4px;border-radius:2px;"`:''}>${typeLabel}</span>
+      <span class="iss-attached-text" ${clickHandler} style="cursor:pointer;">${eh((a.label||'').slice(0,160))}${(a.label||'').length>160?'…':''}</span>
       <button class="iss-attached-del" onclick="issDetach('${issId}','${a.id}')" title="Remove">✕</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   el.innerHTML=`
-    ${signals.length?`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em;">Signals (${signals.length})</div>${itemHtml(signals,'Signal')}`:'' }
-    ${clusters.length?`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin:8px 0 4px;text-transform:uppercase;letter-spacing:.06em;">Clusters</div>${itemHtml(clusters,'Cluster')}`:'' }
-    ${scenarios.length?`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin:8px 0 4px;text-transform:uppercase;letter-spacing:.06em;">Scenarios</div>${itemHtml(scenarios,'Scenario')}`:'' }
-    ${notes.length?`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin:8px 0 4px;text-transform:uppercase;letter-spacing:.06em;">Notes</div>${itemHtml(notes,'Note')}`:'' }
-    ${!iss.attached.length?`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:4px 0;">Drag signals, clusters, or scenarios here — or use + Connect from scan results.</div>`:''}
+    ${signals.length?`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em;">Signals (${signals.length})</div>${itemHtml(signals,'Signal')}`:''}
+    ${clusters.length?`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin:8px 0 4px;text-transform:uppercase;letter-spacing:.06em;">Clusters</div>${itemHtml(clusters,'Cluster')}`:''}
+    ${scenarios.length?`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin:8px 0 4px;text-transform:uppercase;letter-spacing:.06em;">Scenarios</div>${itemHtml(scenarios,'Scenario')}`:''}
+    ${baselines.length?`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin:8px 0 4px;text-transform:uppercase;letter-spacing:.06em;">Baselines</div>${itemHtml(baselines,'Baseline')}`:''}
+    ${notes.length?`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin:8px 0 4px;text-transform:uppercase;letter-spacing:.06em;">Notes</div>${itemHtml(notes,'Note')}`:''}
+    ${!iss.attached.length?`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:4px 0;">Drag signals, clusters, scenarios, or baselines here to connect them.</div>`:''}
   `;
 }
 
@@ -3315,7 +3369,568 @@ function issExport(id){
   a.click();URL.revokeObjectURL(a.href);
 }
 
-// ── Dashboard settings (stored in localStorage, not GitHub) ───
+// ── Baselines ─────────────────────────────────────────────────
+const BL_KEY='weaksig_baselines_v1';
+let blInited=false, blActiveId=null, blCustom=[], blChart=null;
+
+// ── Pre-loaded projection library ─────────────────────────────
+// autoUpdate: true = eligible for automated quarterly/annual refresh
+// updateFreq: 'quarterly'|'annual'|'biennial'|'triennial'|'manual'
+// lastUpdated: ISO date string shown in UI, updated by refresh script
+const BL_LIBRARY=[
+
+  // ════ SOCIAL ════════════════════════════════════════════════
+
+  // Demographics
+  {id:'bl_world_pop',name:'World population',steep:'Social',category:'Demographics',unit:'Billion people',source:'UN DESA World Population Prospects 2022',autoUpdate:true,updateFreq:'annual',lastUpdated:'2024-01',description:'Global population from 1950 to projected 2100. Medium variant shown. Growth is slowing — most future growth comes from sub-Saharan Africa.',projectionStart:2024,data:[{y:1950,v:2.5},{y:1960,v:3.0},{y:1970,v:3.7},{y:1980,v:4.4},{y:1990,v:5.3},{y:2000,v:6.1},{y:2010,v:6.9},{y:2020,v:7.8},{y:2024,v:8.1},{y:2030,v:8.5},{y:2040,v:9.0},{y:2050,v:9.7},{y:2060,v:10.2},{y:2070,v:10.6},{y:2080,v:10.8},{y:2090,v:10.9},{y:2100,v:10.9}],lo:[{y:2024,v:8.1},{y:2030,v:8.3},{y:2050,v:8.9},{y:2075,v:9.2},{y:2100,v:8.5}],hi:[{y:2024,v:8.1},{y:2030,v:8.8},{y:2050,v:10.6},{y:2075,v:12.2},{y:2100,v:13.2}]},
+  {id:'bl_global_median_age',name:'Global median age',steep:'Social',category:'Demographics',unit:'Years',source:'UN DESA / Our World in Data',autoUpdate:true,updateFreq:'annual',lastUpdated:'2024-01',description:'Rising median age reflects demographic transition — fewer births, longer lives. Sweeping implications for labor markets, healthcare, pension systems, and political power.',projectionStart:2024,data:[{y:1950,v:23.5},{y:1960,v:22.9},{y:1970,v:22.1},{y:1980,v:22.6},{y:1990,v:24.2},{y:2000,v:26.5},{y:2010,v:28.9},{y:2020,v:30.9},{y:2024,v:31.8},{y:2030,v:33.2},{y:2040,v:35.6},{y:2050,v:38.0},{y:2060,v:39.9},{y:2075,v:41.5},{y:2100,v:42.8}],lo:[{y:2024,v:31.8},{y:2050,v:36.1},{y:2100,v:39.0}],hi:[{y:2024,v:31.8},{y:2050,v:40.1},{y:2100,v:46.5}]},
+  {id:'bl_urbanization',name:'Global urbanization rate',steep:'Social',category:'Demographics',unit:'% of population in urban areas',source:'UN World Urbanization Prospects',autoUpdate:true,updateFreq:'annual',lastUpdated:'2024-01',description:'Share of humanity living in cities. By 2050 two-thirds of all people will be urban — a profound shift in how societies organize, consume resources, and distribute political power.',projectionStart:2024,data:[{y:1950,v:29.6},{y:1960,v:33.6},{y:1970,v:36.6},{y:1980,v:39.3},{y:1990,v:43.0},{y:2000,v:46.7},{y:2010,v:51.6},{y:2020,v:56.2},{y:2024,v:57.5},{y:2030,v:60.4},{y:2040,v:64.2},{y:2050,v:68.4},{y:2060,v:71.5},{y:2075,v:74.9},{y:2100,v:80.0}]},
+  {id:'bl_fertility',name:'Global total fertility rate',steep:'Social',category:'Demographics',unit:'Births per woman',source:'World Bank / UN DESA',autoUpdate:true,updateFreq:'annual',lastUpdated:'2024-01',description:'Average children born per woman globally. Declining fertility drives aging and eventual population stabilization. Many high-income nations are well below replacement level (2.1).',projectionStart:2024,data:[{y:1960,v:4.98},{y:1970,v:4.72},{y:1980,v:3.84},{y:1990,v:3.25},{y:2000,v:2.72},{y:2010,v:2.52},{y:2020,v:2.30},{y:2024,v:2.23},{y:2030,v:2.10},{y:2040,v:1.97},{y:2050,v:1.90},{y:2075,v:1.80},{y:2100,v:1.78}],lo:[{y:2024,v:2.23},{y:2050,v:1.60},{y:2100,v:1.40}],hi:[{y:2024,v:2.23},{y:2050,v:2.24},{y:2100,v:2.20}]},
+  {id:'bl_migration',name:'International migrants (stock)',steep:'Social',category:'Demographics',unit:'Million people living outside birth country',source:'UN DESA International Migration',autoUpdate:false,updateFreq:'biennial',lastUpdated:'2024-01',description:'Total people living outside their country of birth. Migration is increasingly a pressure valve for demographic imbalances and a flashpoint for political conflict.',projectionStart:2024,data:[{y:1990,v:153},{y:2000,v:173},{y:2010,v:220},{y:2015,v:244},{y:2020,v:281},{y:2024,v:295},{y:2030,v:320},{y:2040,v:370},{y:2050,v:405}],lo:[{y:2024,v:295},{y:2050,v:340}],hi:[{y:2024,v:295},{y:2050,v:480}]},
+  {id:'bl_life_expectancy',name:'Global life expectancy at birth',steep:'Social',category:'Demographics',unit:'Years',source:'UN / World Bank',autoUpdate:true,updateFreq:'annual',lastUpdated:'2024-01',description:'Average years of life expected at birth globally. A composite indicator of health, nutrition, and development. Post-COVID recovery ongoing.',projectionStart:2024,data:[{y:1950,v:46.5},{y:1960,v:52.6},{y:1970,v:57.3},{y:1980,v:61.5},{y:1990,v:64.2},{y:2000,v:66.8},{y:2010,v:70.1},{y:2020,v:72.3},{y:2024,v:73.2},{y:2030,v:74.5},{y:2040,v:76.2},{y:2050,v:77.8},{y:2060,v:79.0},{y:2075,v:80.5},{y:2100,v:83.0}],lo:[{y:2024,v:73.2},{y:2050,v:75.0},{y:2100,v:78.0}],hi:[{y:2024,v:73.2},{y:2050,v:80.5},{y:2100,v:88.0}]},
+  {id:'bl_working_age',name:'Working-age population share',steep:'Social',category:'Demographics',unit:'% aged 15-64',source:'UN DESA / OECD',autoUpdate:true,updateFreq:'annual',lastUpdated:'2024-01',description:'Share of population in prime working ages. The peak demographic dividend has passed globally; most regions now face growing dependency ratios.',projectionStart:2024,data:[{y:1950,v:60.3},{y:1960,v:58.4},{y:1970,v:57.8},{y:1980,v:58.4},{y:1990,v:62.5},{y:2000,v:65.0},{y:2010,v:65.9},{y:2020,v:65.0},{y:2024,v:64.5},{y:2030,v:63.8},{y:2040,v:62.2},{y:2050,v:60.8},{y:2060,v:59.5},{y:2075,v:58.5},{y:2100,v:57.8}]},
+
+  // Trust & Cohesion
+  {id:'bl_trust_govt',name:'Trust in government',steep:'Social',category:'Trust & Cohesion',unit:'% who trust their national government',source:'OECD Government at a Glance / Edelman Trust Barometer',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',description:'Average trust in national government across OECD countries. Peaked ~2020 during COVID response and has since declined. Core indicator of institutional legitimacy and governance capacity.',data:[{y:2007,v:45},{y:2009,v:40},{y:2011,v:40},{y:2013,v:39},{y:2015,v:42},{y:2017,v:42},{y:2019,v:45},{y:2020,v:51},{y:2021,v:49},{y:2022,v:46},{y:2023,v:44},{y:2024,v:43}]},
+  {id:'bl_trust_media',name:'Trust in news media',steep:'Social',category:'Trust & Cohesion',unit:'% who trust most news most of the time',source:'Reuters Institute Digital News Report',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',description:'Trust in news media across 46 countries. Long-run decline punctuated by COVID-era uptick. Linked to political polarization and misinformation vulnerability.',data:[{y:2016,v:44},{y:2017,v:43},{y:2018,v:42},{y:2019,v:42},{y:2020,v:44},{y:2021,v:44},{y:2022,v:42},{y:2023,v:40},{y:2024,v:40}]},
+  {id:'bl_trust_science',name:'Trust in scientists',steep:'Social',category:'Trust & Cohesion',unit:'% with high trust in scientists',source:'Wellcome Global Monitor',autoUpdate:false,updateFreq:'biennial',lastUpdated:'2024-01',description:'Global trust in scientists and scientific institutions. Significant regional variation. Declining in some high-income nations post-COVID. Linked to vaccine uptake and policy effectiveness.',data:[{y:2018,v:72},{y:2020,v:72},{y:2022,v:69},{y:2024,v:67}]},
+  {id:'bl_social_cohesion',name:'Social cohesion index',steep:'Social',category:'Trust & Cohesion',unit:'Index score (0-100)',source:'Bertelsmann Social Cohesion Radar / OECD',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',description:'Composite measure of social bonds, trust between citizens, and shared identity. Declining in many OECD nations — linked to polarization, inequality, and digital fragmentation.',data:[{y:2000,v:65},{y:2005,v:64},{y:2010,v:61},{y:2015,v:59},{y:2018,v:57},{y:2020,v:55},{y:2022,v:54},{y:2024,v:53}]},
+  {id:'bl_loneliness',name:'Self-reported loneliness prevalence',steep:'Social',category:'Trust & Cohesion',unit:'% reporting often/always feeling lonely',source:'Meta-Gallup State of Social Connections / WHO',autoUpdate:false,updateFreq:'biennial',lastUpdated:'2024-01',description:'Share of adults reporting frequent loneliness. Particularly acute among young adults in high-income countries despite high digital connectivity. A growing public health and social cohesion signal.',data:[{y:2000,v:12},{y:2010,v:14},{y:2015,v:16},{y:2018,v:18},{y:2020,v:22},{y:2022,v:24},{y:2024,v:24}]},
+
+  // Health & Wellbeing
+  {id:'bl_mental_health',name:'Mental health disorder prevalence',steep:'Social',category:'Health & Wellbeing',unit:'% of global population',source:'WHO / IHME Global Burden of Disease',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',description:'Share of the global population living with a mental health disorder. The most prevalent category of disease burden globally. Likely undercounted due to stigma and access gaps.',projectionStart:2024,data:[{y:1990,v:12.0},{y:2000,v:12.5},{y:2010,v:13.0},{y:2019,v:13.3},{y:2020,v:14.9},{y:2022,v:14.5},{y:2024,v:14.2},{y:2030,v:15.0}],lo:[{y:2024,v:14.2},{y:2030,v:13.5}],hi:[{y:2024,v:14.2},{y:2030,v:17.0}]},
+  {id:'bl_obesity',name:'Global adult obesity rate',steep:'Social',category:'Health & Wellbeing',unit:'% of adults with BMI 30 or above',source:'WHO Global Health Observatory',autoUpdate:false,updateFreq:'biennial',lastUpdated:'2024-01',description:'Share of adults classified as obese. Has tripled since 1975. Growing burden on healthcare systems; signal of food systems transformation and sedentary lifestyles.',projectionStart:2024,data:[{y:1975,v:3.9},{y:1980,v:4.8},{y:1990,v:7.0},{y:2000,v:10.0},{y:2010,v:13.5},{y:2016,v:15.9},{y:2020,v:17.0},{y:2022,v:17.5},{y:2024,v:18.0},{y:2030,v:20.0}]},
+
+  // Education & Knowledge
+  {id:'bl_literacy',name:'Global adult literacy rate',steep:'Social',category:'Education & Knowledge',unit:'% of adults who can read and write',source:'UNESCO Institute for Statistics',autoUpdate:true,updateFreq:'annual',lastUpdated:'2024-01',description:'Share of adults (15+) with basic literacy. Has improved dramatically but plateaued. Remaining illiterate population is disproportionately female, elderly, and in sub-Saharan Africa.',projectionStart:2024,data:[{y:1970,v:63.0},{y:1980,v:69.0},{y:1990,v:75.4},{y:2000,v:81.9},{y:2010,v:85.3},{y:2015,v:86.3},{y:2020,v:87.0},{y:2022,v:87.3},{y:2024,v:87.5},{y:2030,v:89.0},{y:2040,v:91.5},{y:2050,v:93.5}]},
+  {id:'bl_tertiary_enrollment',name:'Tertiary education enrollment',steep:'Social',category:'Education & Knowledge',unit:'Gross enrollment ratio (%)',source:'World Bank / UNESCO',autoUpdate:true,updateFreq:'annual',lastUpdated:'2024-01',description:'Share of college-age population enrolled in higher education. More than doubled since 1990. Credential inflation and graduate labor market mismatch are emerging tensions.',projectionStart:2024,data:[{y:1970,v:10},{y:1980,v:14},{y:1990,v:14},{y:2000,v:19},{y:2010,v:30},{y:2015,v:36},{y:2020,v:40},{y:2022,v:41},{y:2024,v:42},{y:2030,v:47},{y:2040,v:54}]},
+  {id:'bl_pisa',name:'PISA reading scores (OECD average)',steep:'Social',category:'Education & Knowledge',unit:'Mean score (scale 0-1000)',source:'OECD PISA',autoUpdate:false,updateFreq:'triennial',lastUpdated:'2024-01',description:'Average 15-year-old reading performance across OECD countries. The 2022 results showed the steepest decline since testing began — COVID learning loss compounding a pre-existing plateau.',data:[{y:2000,v:496},{y:2003,v:494},{y:2006,v:492},{y:2009,v:493},{y:2012,v:496},{y:2015,v:493},{y:2018,v:487},{y:2022,v:476}]},
+  {id:'bl_years_schooling',name:'Mean years of schooling',steep:'Social',category:'Education & Knowledge',unit:'Average years of education (adults 25+)',source:'Our World in Data / Barro-Lee',autoUpdate:true,updateFreq:'annual',lastUpdated:'2024-01',description:'Average years of formal education completed by adults globally. Closely correlated with fertility, health outcomes, and economic mobility.',projectionStart:2024,data:[{y:1950,v:3.2},{y:1960,v:3.8},{y:1970,v:4.5},{y:1980,v:5.3},{y:1990,v:6.1},{y:2000,v:7.0},{y:2010,v:8.1},{y:2020,v:8.9},{y:2024,v:9.2},{y:2030,v:9.8},{y:2040,v:10.5},{y:2050,v:11.2}]},
+
+  // ════ TECHNOLOGICAL ══════════════════════════════════════════
+
+  // Computing & AI
+  {id:'bl_moores_law',name:"Moore's Law — transistor count",steep:'Technological',category:'Computing & AI',unit:'Billion transistors per chip (log scale)',source:'Intel / TSMC / WikiChip / IC Insights',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',logScale:true,description:"Transistor density on leading-edge chips has roughly doubled every 2 years since 1965. Physical limits are being approached; progress continues via 3D stacking and new materials.",projectionStart:2024,data:[{y:1971,v:0.000002},{y:1975,v:0.000005},{y:1980,v:0.000025},{y:1985,v:0.000275},{y:1990,v:0.001},{y:1995,v:0.005},{y:2000,v:0.042},{y:2005,v:0.29},{y:2010,v:2.6},{y:2015,v:14},{y:2020,v:50},{y:2022,v:90},{y:2024,v:130},{y:2028,v:300},{y:2030,v:500},{y:2035,v:1200}],lo:[{y:2024,v:130},{y:2030,v:300},{y:2035,v:600}],hi:[{y:2024,v:130},{y:2030,v:800},{y:2035,v:3000}]},
+  {id:'bl_ai_compute',name:'AI training compute',steep:'Technological',category:'Computing & AI',unit:'Petaflop-days (log scale)',source:'Epoch AI',autoUpdate:true,updateFreq:'quarterly',lastUpdated:'2024-01',logScale:true,description:"Compute used to train frontier AI models has grown ~4x per year — far faster than Moore's Law. Primary driver of AI capability growth. One of the most important technology indicators to track.",projectionStart:2024,data:[{y:2012,v:0.0001},{y:2014,v:0.001},{y:2016,v:0.1},{y:2018,v:10},{y:2020,v:1000},{y:2022,v:50000},{y:2023,v:300000},{y:2024,v:1000000},{y:2026,v:10000000},{y:2028,v:100000000}],lo:[{y:2024,v:1000000},{y:2028,v:10000000}],hi:[{y:2024,v:1000000},{y:2028,v:1000000000}]},
+  {id:'bl_ai_benchmarks',name:'AI model benchmark performance',steep:'Technological',category:'Computing & AI',unit:'% of human-level performance on composite benchmarks',source:'Stanford HAI AI Index / Papers With Code',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',description:'AI performance on standardized benchmarks relative to average human performance. Models now exceed human performance on many narrow tasks; general reasoning remains contested.',projectionStart:2024,data:[{y:2012,v:35},{y:2014,v:45},{y:2016,v:58},{y:2018,v:72},{y:2019,v:82},{y:2020,v:91},{y:2021,v:97},{y:2022,v:103},{y:2023,v:115},{y:2024,v:125},{y:2026,v:145},{y:2030,v:190}]},
+  {id:'bl_semiconductor_revenue',name:'Global semiconductor revenue',steep:'Technological',category:'Computing & AI',unit:'USD billion',source:'WSTS / SIA',autoUpdate:false,updateFreq:'quarterly',lastUpdated:'2024-01',description:'Global semiconductor industry revenue — leading indicator of technology investment cycles and geopolitical competition. Supply chain geography is being actively reshaped.',data:[{y:2000,v:204},{y:2005,v:228},{y:2010,v:299},{y:2015,v:335},{y:2018,v:469},{y:2019,v:412},{y:2020,v:440},{y:2021,v:556},{y:2022,v:574},{y:2023,v:520},{y:2024,v:611},{y:2030,v:1000}]},
+  {id:'bl_ai_patents',name:'AI patent applications',steep:'Technological',category:'Computing & AI',unit:'Thousands of AI-related patent applications',source:'WIPO Technology Trends',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',description:'Volume of AI-related patent filings globally. China surpassed the US in AI patents around 2017. A lagging but reliable indicator of commercial AI investment direction.',data:[{y:2000,v:5},{y:2005,v:8},{y:2010,v:16},{y:2013,v:30},{y:2015,v:55},{y:2017,v:102},{y:2019,v:170},{y:2021,v:230},{y:2022,v:270},{y:2023,v:310}]},
+
+  // Connectivity
+  {id:'bl_internet_penetration',name:'Global internet penetration',steep:'Technological',category:'Connectivity',unit:'% of global population',source:'ITU / Our World in Data',autoUpdate:true,updateFreq:'annual',lastUpdated:'2024-01',description:'Share of humanity with internet access. Growth slowing in developed markets while expanding in Africa and South Asia.',projectionStart:2024,data:[{y:1995,v:0.4},{y:2000,v:6.8},{y:2005,v:15.8},{y:2010,v:28.8},{y:2015,v:43.2},{y:2020,v:59.0},{y:2022,v:64.4},{y:2024,v:67.0},{y:2030,v:75.0},{y:2040,v:85.0},{y:2050,v:92.0}],lo:[{y:2024,v:67.0},{y:2030,v:70.0},{y:2050,v:85.0}],hi:[{y:2024,v:67.0},{y:2030,v:80.0},{y:2050,v:97.0}]},
+  {id:'bl_mobile_penetration',name:'Mobile phone penetration',steep:'Technological',category:'Connectivity',unit:'Mobile subscriptions per 100 people',source:'ITU / World Bank',autoUpdate:true,updateFreq:'annual',lastUpdated:'2024-01',description:'Mobile subscriptions per 100 people. Now the primary internet access point for most of the developing world. Exceeds 100 in many markets due to multiple SIMs per person.',data:[{y:2000,v:12},{y:2005,v:34},{y:2010,v:78},{y:2015,v:97},{y:2018,v:104},{y:2020,v:107},{y:2022,v:108},{y:2024,v:110}]},
+  {id:'bl_social_media_users',name:'Global social media users',steep:'Technological',category:'Connectivity',unit:'Billion active users',source:'DataReportal / We Are Social',autoUpdate:false,updateFreq:'quarterly',lastUpdated:'2024-01',description:'People actively using social media globally. Now more than half the world population. Primary driver of information spread, political mobilization, and mental health trends.',projectionStart:2024,data:[{y:2010,v:0.97},{y:2012,v:1.4},{y:2014,v:1.9},{y:2016,v:2.3},{y:2018,v:3.2},{y:2020,v:3.96},{y:2022,v:4.62},{y:2023,v:4.95},{y:2024,v:5.17},{y:2027,v:5.85},{y:2030,v:6.3}]},
+  {id:'bl_broadband_speed',name:'Global median fixed broadband speed',steep:'Technological',category:'Connectivity',unit:'Mbps (median download)',source:'Ookla Speedtest Global Index / ITU',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',description:'Median fixed broadband download speed globally. A proxy for digital infrastructure quality. Massive gaps persist globally despite rapid growth in high-income countries.',data:[{y:2010,v:7},{y:2013,v:13},{y:2016,v:24},{y:2018,v:40},{y:2020,v:60},{y:2021,v:75},{y:2022,v:90},{y:2023,v:110},{y:2024,v:120}]},
+
+  // Energy
+  {id:'bl_renewables_capacity',name:'Global renewable energy capacity',steep:'Technological',category:'Energy',unit:'Gigawatts installed',source:'IRENA',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',description:'Total installed capacity of solar, wind, hydro, and other renewables. Solar and wind are the fastest-growing energy sources in history.',projectionStart:2024,data:[{y:2000,v:900},{y:2005,v:1050},{y:2010,v:1320},{y:2015,v:1985},{y:2018,v:2500},{y:2020,v:2800},{y:2022,v:3372},{y:2024,v:4000},{y:2030,v:7300},{y:2040,v:14000},{y:2050,v:22000}],lo:[{y:2024,v:4000},{y:2030,v:5500},{y:2050,v:15000}],hi:[{y:2024,v:4000},{y:2030,v:9000},{y:2050,v:35000}]},
+  {id:'bl_ev_sales',name:'EV share of new car sales',steep:'Technological',category:'Energy',unit:'% of new passenger vehicle sales',source:'IEA Global EV Outlook',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',description:'Electric vehicles as share of new passenger car sales globally. One of the fastest technology transitions in history — from near-zero in 2015 to ~18% in 2023.',projectionStart:2024,data:[{y:2015,v:0.9},{y:2017,v:1.3},{y:2019,v:2.5},{y:2020,v:4.1},{y:2021,v:8.6},{y:2022,v:14},{y:2023,v:18},{y:2024,v:22},{y:2027,v:35},{y:2030,v:45}],lo:[{y:2024,v:22},{y:2030,v:30}],hi:[{y:2024,v:22},{y:2030,v:60}]},
+
+  // ════ ECONOMIC ═══════════════════════════════════════════════
+
+  {id:'bl_world_gdp',name:'World GDP per capita',steep:'Economic',category:'Growth & Wealth',unit:'USD (2017 PPP)',source:'World Bank / Maddison Project',autoUpdate:true,updateFreq:'annual',lastUpdated:'2024-01',description:'Average income per person globally, adjusted for purchasing power. Masks enormous inequality between and within countries.',projectionStart:2024,data:[{y:1960,v:4200},{y:1970,v:5500},{y:1980,v:7000},{y:1990,v:8200},{y:2000,v:10200},{y:2010,v:13000},{y:2020,v:16000},{y:2024,v:18000},{y:2030,v:22000},{y:2040,v:28000},{y:2050,v:36000}],lo:[{y:2024,v:18000},{y:2050,v:28000}],hi:[{y:2024,v:18000},{y:2050,v:50000}]},
+  {id:'bl_gini',name:'Global income inequality (Gini)',steep:'Economic',category:'Growth & Wealth',unit:'Gini coefficient (0=equal, 1=unequal)',source:'World Bank / Our World in Data',autoUpdate:true,updateFreq:'annual',lastUpdated:'2024-01',description:'Between-country inequality peaked ~2000 and has been falling as emerging economies grow. Within-country inequality has risen in many places, fueling political polarization.',projectionStart:2024,data:[{y:1960,v:0.64},{y:1970,v:0.66},{y:1980,v:0.68},{y:1990,v:0.69},{y:2000,v:0.70},{y:2010,v:0.66},{y:2020,v:0.63},{y:2024,v:0.62},{y:2030,v:0.59},{y:2040,v:0.56},{y:2050,v:0.54}],lo:[{y:2024,v:0.62},{y:2050,v:0.48}],hi:[{y:2024,v:0.62},{y:2050,v:0.61}]},
+  {id:'bl_global_debt',name:'Global debt to GDP ratio',steep:'Economic',category:'Growth & Wealth',unit:'% of GDP',source:'IMF Global Debt Database',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',description:'Total global debt (public + private) as share of GDP. Reached record highs post-COVID. High debt constrains future policy options and raises financial fragility risk.',data:[{y:1970,v:100},{y:1980,v:130},{y:1990,v:150},{y:2000,v:175},{y:2008,v:190},{y:2010,v:215},{y:2015,v:225},{y:2019,v:235},{y:2020,v:265},{y:2022,v:248},{y:2024,v:250}]},
+  {id:'bl_middle_class',name:'Global middle class size',steep:'Economic',category:'Growth & Wealth',unit:'Billion people at $10-100 per day PPP',source:'Pew Research Center',autoUpdate:false,updateFreq:'biennial',lastUpdated:'2024-01',description:'People globally living on a middle-class income. Doubled between 2001-2011 driven by China and India. Growth now slowing. Primary driver of consumer markets and political expectations.',projectionStart:2024,data:[{y:2000,v:1.7},{y:2005,v:2.1},{y:2010,v:2.8},{y:2015,v:3.4},{y:2020,v:3.7},{y:2024,v:4.0},{y:2030,v:4.6},{y:2040,v:5.2},{y:2050,v:5.8}]},
+  {id:'bl_automation_risk',name:'Jobs at high risk of automation',steep:'Economic',category:'Labor',unit:'% of current jobs',source:'Frey & Osborne / McKinsey / OECD synthesis',autoUpdate:false,updateFreq:'manual',lastUpdated:'2024-01',description:'Estimates of jobs susceptible to automation vary widely. Near-term task displacement is more certain than job elimination. Confidence intervals are very wide reflecting genuine uncertainty.',projectionStart:2020,data:[{y:2020,v:14},{y:2025,v:18},{y:2030,v:25},{y:2035,v:32},{y:2040,v:38},{y:2045,v:43},{y:2050,v:47}],lo:[{y:2020,v:14},{y:2030,v:9},{y:2050,v:10}],hi:[{y:2020,v:14},{y:2030,v:47},{y:2050,v:85}]},
+  {id:'bl_labor_participation',name:'Global labor force participation',steep:'Economic',category:'Labor',unit:'% of working-age population',source:'ILO ILOSTAT',autoUpdate:true,updateFreq:'annual',lastUpdated:'2024-01',description:'Share of working-age adults employed or actively seeking work. Declining long-term especially among men in advanced economies.',projectionStart:2024,data:[{y:1990,v:65.3},{y:2000,v:63.9},{y:2010,v:63.0},{y:2015,v:62.3},{y:2019,v:61.8},{y:2020,v:59.2},{y:2022,v:60.5},{y:2024,v:61.0},{y:2030,v:61.5}]},
+  {id:'bl_youth_unemployment',name:'Global youth unemployment rate',steep:'Economic',category:'Labor',unit:'% of youth labor force (15-24) unemployed',source:'ILO',autoUpdate:true,updateFreq:'annual',lastUpdated:'2024-01',description:'Share of 15-24 year olds who are unemployed. Persistently high in MENA and sub-Saharan Africa. Leading indicator of social unrest and wasted human potential.',projectionStart:2024,data:[{y:2000,v:13.5},{y:2005,v:13.0},{y:2010,v:13.5},{y:2015,v:13.0},{y:2019,v:13.6},{y:2020,v:15.6},{y:2022,v:14.5},{y:2023,v:13.8},{y:2024,v:13.5},{y:2030,v:13.0}]},
+  {id:'bl_vc_investment',name:'Global venture capital investment',steep:'Economic',category:'Innovation & Capital',unit:'USD billion invested',source:'OECD / PitchBook / Crunchbase',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',description:'Total VC deployed globally. Leading indicator of where technological and business model innovation is being bet on. Highly cyclical — the 2021-22 peak was extraordinary.',data:[{y:2005,v:30},{y:2010,v:60},{y:2015,v:140},{y:2018,v:280},{y:2020,v:310},{y:2021,v:620},{y:2022,v:420},{y:2023,v:285},{y:2024,v:320}]},
+  {id:'bl_rd_spending',name:'Global R&D spending',steep:'Economic',category:'Innovation & Capital',unit:'USD trillion (constant 2015)',source:'UNESCO Institute for Statistics',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',description:"China's share has risen from ~5% in 2000 to ~25% today. A long-run driver of innovation capacity and geopolitical competition.",projectionStart:2024,data:[{y:2000,v:0.75},{y:2005,v:0.95},{y:2010,v:1.24},{y:2015,v:1.68},{y:2018,v:1.96},{y:2020,v:2.1},{y:2022,v:2.4},{y:2024,v:2.6},{y:2030,v:3.2}]},
+  {id:'bl_china_gdp_share',name:'China share of world GDP (PPP)',steep:'Economic',category:'Geopolitics',unit:'% of world GDP',source:'World Bank / IMF',autoUpdate:true,updateFreq:'annual',lastUpdated:'2024-01',description:"China's share of global economic output at PPP. Rose from ~4% in 1990 to ~18% today. Major implications for global governance, trade, and technology standards.",projectionStart:2024,data:[{y:1980,v:2.3},{y:1990,v:3.9},{y:2000,v:7.3},{y:2005,v:9.6},{y:2010,v:13.5},{y:2015,v:17.0},{y:2020,v:17.9},{y:2022,v:18.4},{y:2024,v:18.8},{y:2030,v:21.0},{y:2040,v:23.0}],lo:[{y:2024,v:18.8},{y:2040,v:18.0}],hi:[{y:2024,v:18.8},{y:2040,v:27.0}]},
+
+  // ════ ENVIRONMENTAL ══════════════════════════════════════════
+
+  {id:'bl_co2',name:'Atmospheric CO2 concentration',steep:'Environmental',category:'Climate',unit:'Parts per million (ppm)',source:'NOAA GML',autoUpdate:true,updateFreq:'quarterly',lastUpdated:'2024-01',description:'CO2 concentration in the atmosphere. Pre-industrial baseline ~280ppm. 420ppm crossed in 2023. Updated monthly by NOAA.',projectionStart:2024,data:[{y:1960,v:317},{y:1970,v:325},{y:1980,v:339},{y:1990,v:354},{y:2000,v:369},{y:2010,v:389},{y:2020,v:412},{y:2023,v:421},{y:2024,v:422},{y:2030,v:435},{y:2040,v:454},{y:2050,v:470},{y:2060,v:485},{y:2075,v:500},{y:2100,v:510}],lo:[{y:2024,v:422},{y:2050,v:430},{y:2100,v:440}],hi:[{y:2024,v:422},{y:2050,v:520},{y:2100,v:650}]},
+  {id:'bl_temp_anomaly',name:'Global mean temperature anomaly',steep:'Environmental',category:'Climate',unit:'Degrees C above 1850-1900 baseline',source:'IPCC AR6 / WMO',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',description:'Paris Agreement targets 1.5C limit. Current trajectory: 2.5-3C by 2100 under current policies. 2023-24 exceeded 1.5C for the first time.',projectionStart:2024,data:[{y:1960,v:0.0},{y:1970,v:0.1},{y:1980,v:0.2},{y:1990,v:0.4},{y:2000,v:0.6},{y:2010,v:0.8},{y:2020,v:1.1},{y:2023,v:1.45},{y:2024,v:1.5},{y:2030,v:1.6},{y:2040,v:1.9},{y:2050,v:2.2},{y:2075,v:2.7},{y:2100,v:2.9}],lo:[{y:2024,v:1.5},{y:2050,v:1.5},{y:2100,v:1.5}],hi:[{y:2024,v:1.5},{y:2050,v:2.8},{y:2100,v:4.4}]},
+  {id:'bl_biodiversity',name:'Vertebrate wildlife population index',steep:'Environmental',category:'Biodiversity',unit:'Index (1970 = 100)',source:'WWF Living Planet Report',autoUpdate:false,updateFreq:'biennial',lastUpdated:'2024-01',description:'Average population size of monitored vertebrate species since 1970. Shows 69% average decline by 2018. One of the starkest available measures of biodiversity loss.',projectionStart:2024,data:[{y:1970,v:100},{y:1980,v:87},{y:1990,v:77},{y:2000,v:66},{y:2010,v:54},{y:2018,v:31},{y:2024,v:28},{y:2030,v:24},{y:2040,v:19},{y:2050,v:15}],lo:[{y:2024,v:28},{y:2050,v:8}],hi:[{y:2024,v:28},{y:2050,v:22}]},
+
+  // ════ POLITICAL ══════════════════════════════════════════════
+
+  {id:'bl_democracy_index',name:'Global democracy index',steep:'Political',category:'Governance',unit:'Share of world population in democracies (%)',source:'V-Dem Institute',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',description:'Share of global population living under democratic governments. Peaked ~2012 and has declined since — the third wave of autocratization. Now below 50% for the first time since the 1970s.',projectionStart:2024,data:[{y:1975,v:32},{y:1985,v:38},{y:1990,v:49},{y:2000,v:55},{y:2005,v:57},{y:2010,v:61},{y:2012,v:63},{y:2015,v:58},{y:2018,v:52},{y:2020,v:49},{y:2022,v:47},{y:2024,v:46}]},
+  {id:'bl_press_freedom',name:'Global press freedom index',steep:'Political',category:'Governance',unit:'Index score (0=worst, 100=best)',source:'Reporters Without Borders (RSF)',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',description:'Composite index measuring the ability of journalists to report freely. Has declined steadily over the past decade. Closely correlated with broader democratic backsliding.',data:[{y:2013,v:54},{y:2015,v:52},{y:2017,v:50},{y:2019,v:48},{y:2021,v:47},{y:2022,v:47},{y:2023,v:46},{y:2024,v:45}]},
+  {id:'bl_military_spend',name:'Global military spending',steep:'Political',category:'Security',unit:'USD billion (constant 2022)',source:'SIPRI',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',description:'World military expenditure has risen every year since 2015. Record $2.24 trillion in 2023, driven by Ukraine war and US-China competition.',projectionStart:2024,data:[{y:1990,v:1500},{y:2000,v:1100},{y:2005,v:1400},{y:2010,v:1730},{y:2015,v:1790},{y:2018,v:1900},{y:2020,v:2000},{y:2022,v:2140},{y:2023,v:2240},{y:2024,v:2300},{y:2030,v:2700}]},
+  {id:'bl_refugees',name:'Forcibly displaced persons',steep:'Political',category:'Security',unit:'Million people',source:'UNHCR Global Trends',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',description:'Total people forcibly displaced globally. Reached record 117 million in 2023. Composite indicator of conflict, climate, and political instability.',data:[{y:2000,v:38},{y:2005,v:37},{y:2010,v:42},{y:2015,v:66},{y:2017,v:70},{y:2019,v:80},{y:2021,v:90},{y:2022,v:103},{y:2023,v:117}]},
+  {id:'bl_conflicts',name:'Active armed conflicts',steep:'Political',category:'Security',unit:'Number of state-based conflicts',source:'Uppsala Conflict Data Program (UCDP)',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',description:'Number of active armed conflicts. At its highest level since the early 1990s. Significant rise since 2010.',data:[{y:1990,v:51},{y:1995,v:38},{y:2000,v:30},{y:2005,v:30},{y:2010,v:31},{y:2015,v:40},{y:2018,v:52},{y:2020,v:56},{y:2022,v:55},{y:2023,v:59}]},
+
+  // ════ LEGAL / REGULATORY ════════════════════════════════════
+
+  {id:'bl_ai_regulation',name:'AI regulations enacted globally',steep:'Legal',category:'Regulation',unit:'Cumulative count of national AI laws',source:'OECD AI Policy Observatory',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',description:'Cumulative count of national-level AI-specific laws and regulations. Accelerating rapidly from near-zero in 2016 to 700+ by 2024. Regulatory fragmentation is a key risk for global AI deployment.',data:[{y:2016,v:10},{y:2018,v:60},{y:2019,v:120},{y:2020,v:200},{y:2021,v:310},{y:2022,v:440},{y:2023,v:590},{y:2024,v:720}]},
+  {id:'bl_data_privacy_laws',name:'Data privacy laws globally',steep:'Legal',category:'Regulation',unit:'Countries with comprehensive data protection law',source:'UNCTAD',autoUpdate:false,updateFreq:'annual',lastUpdated:'2024-01',description:'Countries with comprehensive national data privacy legislation. GDPR-inspired frameworks have spread rapidly since 2018. Still absent in most of Africa and parts of Asia.',data:[{y:2000,v:30},{y:2005,v:50},{y:2010,v:76},{y:2015,v:100},{y:2018,v:120},{y:2020,v:137},{y:2022,v:157},{y:2024,v:162}]},
+];
+
+// STEEP color map for baselines
+const BL_STEEP_COLORS={
+  'Social':    {c:'#5B4FA0',bg:'#EDE9F7',fg:'#3A3070'},
+  'Technological':{c:'#2D5FA0',bg:'#E6EEF7',fg:'#1B3E6B'},
+  'Economic':  {c:'#1D8A8A',bg:'#E4F3F3',fg:'#115555'},
+  'Environmental':{c:'#2A7A52',bg:'#E5F1EA',fg:'#1A5C38'},
+  'Political': {c:'#C05030',bg:'#FAF0ED',fg:'#7A3020'},
+  'Legal':     {c:'#B8760F',bg:'#FBF0DE',fg:'#7A5009'},
+  'Custom':    {c:'#888780',bg:'#F1EFE8',fg:'#444441'},
+};
+
+function blAllBaselines(){
+  return [...BL_LIBRARY,...blCustom];
+}
+
+function blInit(){
+  if(!blInited){
+    blInited=true;
+    const saved=localStorage.getItem(BL_KEY);
+    if(saved){try{blCustom=JSON.parse(saved);}catch(e){}}
+    // Fetch live data from Apps Script in background
+    blFetchLiveData();
+  }
+  blRenderList('');
+}
+
+// Fetch latest data points from Apps Script and merge into library
+async function blFetchLiveData(){
+  const cfg=getDashConfig();
+  if(!cfg.appsScriptUrl||!cfg.appsScriptToken)return;
+  try{
+    const url=`${cfg.appsScriptUrl}?action=getBaselines&token=${encodeURIComponent(cfg.appsScriptToken)}`;
+    const res=await fetch(url);
+    if(!res.ok)return;
+    const data=await res.json();
+    if(!data.success||!data.baselines||!data.baselines.length)return;
+
+    // Merge live points into BL_LIBRARY entries — append/replace recent data
+    data.baselines.forEach(live=>{
+      const bl=BL_LIBRARY.find(b=>b.id===live.id);
+      if(!bl||!live.points||!live.points.length)return;
+      // Find the year where live data starts and splice in
+      const minLiveYear=Math.min(...live.points.map(p=>p.y));
+      // Remove baked-in data points for years covered by live data
+      bl.data=bl.data.filter(d=>d.y<minLiveYear);
+      // Append live points
+      bl.data.push(...live.points);
+      bl.data.sort((a,b)=>a.y-b.y);
+      // Update lastUpdated
+      if(live.updatedAt)bl.lastUpdated=live.updatedAt.slice(0,7);
+    });
+
+    // Re-render list to show updated timestamps
+    blRenderList(document.getElementById('bl-search')?.value||'');
+    // Re-render active chart if one is open
+    if(blActiveId)blRenderDetail(blActiveId);
+    Logger.log&&Logger.log('Baseline live data merged: '+data.baselines.length+' baselines updated');
+  }catch(e){
+    // Silent fail — live data is a nice-to-have, not required
+  }
+}
+
+function blSaveCustom(){
+  localStorage.setItem(BL_KEY,JSON.stringify(blCustom));
+}
+
+// ── List rendering ────────────────────────────────────────────
+function blRenderList(q=''){
+  const el=document.getElementById('bl-list');if(!el)return;
+  const all=blAllBaselines();
+  const filtered=q?all.filter(b=>
+    (b.name+b.steep+b.category+(b.description||'')).toLowerCase().includes(q.toLowerCase())
+  ):all;
+
+  // Group by STEEP
+  const groups={};
+  filtered.forEach(b=>{
+    const g=b.steep||'Custom';
+    if(!groups[g])groups[g]=[];
+    groups[g].push(b);
+  });
+
+  if(!filtered.length){
+    el.innerHTML=`<div style="padding:16px;font-family:var(--mono);font-size:11px;color:var(--txt3);">No projections found.</div>`;
+    return;
+  }
+
+  el.innerHTML=Object.entries(groups).map(([steep,items])=>{
+    const sc=BL_STEEP_COLORS[steep]||BL_STEEP_COLORS.Custom;
+    const itemsHtml=items.map(b=>`
+      <div style="padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--bor);
+        transition:background .12s;${blActiveId===b.id?'background:var(--sur2);border-left:3px solid '+sc.c+';':''}"
+        onclick="blSelect('${b.id}')"
+        draggable="true"
+        ondragstart="blDragStart(event,'${b.id}')">
+        <div style="font-size:12px;color:var(--txt);font-weight:${blActiveId===b.id?'500':'400'};">${eh(b.name)}</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:2px;">
+          ${b.unit}${b.category?' · '+b.category:''}
+          <span style="margin-left:6px;color:var(--txt3);font-size:8px;cursor:grab;" title="Drag to connect">⠿</span>
+        </div>
+      </div>`).join('');
+    return `<div>
+      <div style="padding:6px 14px;font-family:var(--mono);font-size:9px;letter-spacing:.08em;
+        text-transform:uppercase;color:${sc.fg};background:${sc.bg};border-bottom:1px solid var(--bor);">${steep}</div>
+      ${itemsHtml}
+    </div>`;
+  }).join('');
+}
+
+function blFilterList(q){blRenderList(q);}
+
+function blSelect(id){
+  blActiveId=id;
+  blRenderList(document.getElementById('bl-search')?.value||'');
+  blRenderDetail(id);
+}
+
+// ── Detail / chart ────────────────────────────────────────────
+function blRenderDetail(id){
+  const b=blAllBaselines().find(x=>x.id===id);if(!b)return;
+  const det=document.getElementById('bl-detail');if(!det)return;
+  const sc=BL_STEEP_COLORS[b.steep]||BL_STEEP_COLORS.Custom;
+  const hasCI=b.lo&&b.hi&&b.lo.length>0;
+  const isCustom=!BL_LIBRARY.find(x=>x.id===id);
+
+  det.innerHTML=`
+    <div class="iss-detail-card" style="margin-bottom:12px;">
+      <div class="iss-card-title">
+        <div>
+          <span style="font-family:var(--serif);font-size:15px;font-weight:700;color:var(--txt);
+            text-transform:none;letter-spacing:0;">${eh(b.name)}</span>
+          <span style="font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:2px;
+            background:${sc.bg};color:${sc.fg};margin-left:8px;">${b.steep}</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          ${hasCI?`<label style="font-family:var(--mono);font-size:10px;color:var(--txt2);display:flex;align-items:center;gap:5px;cursor:pointer;">
+            <input type="checkbox" id="bl-ci-toggle" onchange="blToggleCI()" style="cursor:pointer;"> Confidence intervals
+          </label>`:''}
+          <button onclick="blConnectToIssue('${id}')" class="rbtn" style="font-size:10px;padding:3px 9px;">+ Add to issue</button>
+          ${isCustom?`<button onclick="blDeleteCustom('${id}')" class="rbtn" style="font-size:10px;padding:3px 9px;color:var(--txt3);">Delete</button>`:''}
+        </div>
+      </div>
+      <div style="padding:10px 16px 4px;">
+        <div style="font-size:12px;color:var(--txt2);line-height:1.6;margin-bottom:8px;">${eh(b.description||'')}</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--txt3);">
+          Source: ${eh(b.source||'Unknown')} · Unit: ${eh(b.unit)}
+          ${b.projectionStart?` · Projections from ${b.projectionStart}`:''}
+          ${b.updateFreq?` · Updates: ${b.updateFreq}`:''}
+          ${b.lastUpdated?` · Data as of: ${b.lastUpdated}`:''}
+          ${b.autoUpdate?` <span style="color:var(--green);font-size:9px;">● auto-update eligible</span>`:''}
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="iss-detail-card" style="margin-bottom:12px;">
+      <div class="iss-card-title">Projection chart
+        <span style="font-family:var(--sans);font-size:10px;color:var(--txt3);font-weight:400;text-transform:none;letter-spacing:0;">
+          ${b.logScale?'Log scale · ':''} Drag signals from your database onto the chart year range
+        </span>
+      </div>
+      <div style="padding:12px 16px 16px;">
+        <div style="position:relative;height:300px;">
+          <canvas id="bl-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Signal overlay -->
+    <div class="iss-detail-card" style="margin-bottom:12px;">
+      <div class="iss-card-title">Signal overlay
+        <span style="font-family:var(--sans);font-size:10px;color:var(--txt3);font-weight:400;text-transform:none;letter-spacing:0;">
+          Connect signals to this projection for context
+        </span>
+      </div>
+      <div style="padding:8px 16px;" id="bl-signal-list">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--txt3);">No signals connected yet.</div>
+      </div>
+      <div class="iss-drop-zone" id="bl-signal-drop"
+        ondragover="event.preventDefault();this.classList.add('over')"
+        ondragleave="this.classList.remove('over')"
+        ondrop="blDropSignal(event,'${id}')">
+        Drop signals here to connect them to this projection
+      </div>
+    </div>
+
+    <!-- Drag handle for issues/clusters/scenarios -->
+    <div style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;padding:12px 16px;
+      display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--txt3);">
+        Connect this projection to your other work
+      </div>
+      <div style="display:flex;gap:8px;">
+        <div draggable="true" ondragstart="blDragStart(event,'${id}')"
+          style="font-family:var(--mono);font-size:10px;padding:5px 12px;background:${sc.bg};
+          color:${sc.fg};border:1px solid ${sc.c};border-radius:3px;cursor:grab;user-select:none;">
+          ⠿ Drag to Issue / Cluster / Scenario
+        </div>
+      </div>
+    </div>`;
+
+  // Render chart after DOM updates
+  setTimeout(()=>blDrawChart(b),50);
+
+  // Render connected signals
+  blRenderSignalOverlay(id);
+}
+
+// ── Chart drawing ─────────────────────────────────────────────
+function blDrawChart(b,showCI=false){
+  const canvas=document.getElementById('bl-chart');if(!canvas)return;
+  if(blChart){blChart.destroy();blChart=null;}
+
+  const sc=BL_STEEP_COLORS[b.steep]||BL_STEEP_COLORS.Custom;
+  const allYears=b.data.map(d=>d.y);
+  const datasets=[];
+
+  // CI band (hi)
+  if(showCI&&b.hi){
+    datasets.push({
+      label:'High estimate',
+      data:b.hi.map(d=>({x:d.y,y:d.v})),
+      borderColor:'transparent',
+      backgroundColor:'rgba(45,95,160,0.08)',
+      fill:'+1',
+      pointRadius:0,tension:0.4,order:3
+    });
+  }
+  // CI band (lo)
+  if(showCI&&b.lo){
+    datasets.push({
+      label:'Low estimate',
+      data:b.lo.map(d=>({x:d.y,y:d.v})),
+      borderColor:'transparent',
+      backgroundColor:'rgba(45,95,160,0.08)',
+      fill:false,
+      pointRadius:0,tension:0.4,order:3
+    });
+  }
+
+  // Historical vs projection split
+  const historical=b.data.filter(d=>!b.projectionStart||d.y<b.projectionStart);
+  const projected=b.data.filter(d=>b.projectionStart&&d.y>=b.projectionStart);
+
+  if(historical.length){
+    datasets.push({
+      label:'Historical',
+      data:historical.map(d=>({x:d.y,y:d.v})),
+      borderColor:sc.c,
+      backgroundColor:'transparent',
+      borderWidth:2.5,
+      pointRadius:3,
+      pointBackgroundColor:sc.c,
+      tension:0.3,
+      order:1
+    });
+  }
+  if(projected.length){
+    // Include last historical point for continuity
+    const bridge=historical.length?[historical[historical.length-1]]:[];
+    datasets.push({
+      label:'Projection',
+      data:[...bridge,...projected].map(d=>({x:d.y,y:d.v})),
+      borderColor:sc.c,
+      backgroundColor:'transparent',
+      borderWidth:2,
+      borderDash:[6,3],
+      pointRadius:2,
+      pointBackgroundColor:sc.c,
+      tension:0.3,
+      order:2
+    });
+  }
+
+  blChart=new Chart(canvas,{
+    type:'line',
+    data:{datasets},
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{
+          display:true,
+          labels:{
+            font:{size:10,family:'DM Mono'},
+            color:'#9C9890',
+            boxWidth:20,padding:12
+          }
+        },
+        tooltip:{
+          backgroundColor:'#fff',
+          titleColor:'#1A1916',
+          bodyColor:'#6B6760',
+          borderColor:'#E2DDD5',
+          borderWidth:1,
+          callbacks:{
+            label:ctx=>`${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} ${b.unit}`
+          }
+        }
+      },
+      scales:{
+        x:{
+          type:'linear',
+          title:{display:true,text:'Year',color:'#9C9890',font:{size:10,family:'DM Mono'}},
+          grid:{color:'rgba(0,0,0,0.05)'},
+          ticks:{color:'#9C9890',font:{size:10},stepSize:10}
+        },
+        y:{
+          type:b.logScale?'logarithmic':'linear',
+          title:{display:true,text:b.unit,color:'#9C9890',font:{size:10,family:'DM Mono'}},
+          grid:{color:'rgba(0,0,0,0.05)'},
+          ticks:{
+            color:'#9C9890',font:{size:10},
+            callback:v=>{
+              if(v>=1e9)return(v/1e9).toFixed(1)+'B';
+              if(v>=1e6)return(v/1e6).toFixed(1)+'M';
+              if(v>=1e3)return(v/1e3).toFixed(0)+'K';
+              return v;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function blToggleCI(){
+  const cb=document.getElementById('bl-ci-toggle');if(!cb)return;
+  const b=blAllBaselines().find(x=>x.id===blActiveId);if(!b)return;
+  blDrawChart(b,cb.checked);
+}
+
+// ── Signal overlay ────────────────────────────────────────────
+// Store signal overlays in localStorage per baseline
+const BL_OVERLAY_KEY='weaksig_bl_overlays_v1';
+function blGetOverlays(){
+  try{return JSON.parse(localStorage.getItem(BL_OVERLAY_KEY))||{};}catch(e){return{};}
+}
+function blSaveOverlays(ovs){
+  localStorage.setItem(BL_OVERLAY_KEY,JSON.stringify(ovs));
+}
+
+function blDropSignal(e,blId){
+  e.preventDefault();
+  document.getElementById('bl-signal-drop')?.classList.remove('over');
+  try{
+    const data=JSON.parse(e.dataTransfer.getData('text/plain'));
+    let sigIdx=null;
+    if(data.type==='pool'||data.type==='sc2-signal')sigIdx=data.idx;
+    if(sigIdx===null)return;
+    const ovs=blGetOverlays();
+    if(!ovs[blId])ovs[blId]=[];
+    if(ovs[blId].includes(sigIdx))return;
+    ovs[blId].push(sigIdx);
+    blSaveOverlays(ovs);
+    blRenderSignalOverlay(blId);
+  }catch(err){}
+}
+
+function blRenderSignalOverlay(blId){
+  const el=document.getElementById('bl-signal-list');if(!el)return;
+  const ovs=blGetOverlays();
+  const sigIdxs=ovs[blId]||[];
+  if(!sigIdxs.length){
+    el.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:4px 0;">No signals connected yet. Drop signals from the browser into the zone below.</div>`;
+    return;
+  }
+  el.innerHTML=sigIdxs.map((idx,i)=>{
+    const r=ROWS[idx];if(!r)return'';
+    const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};
+    const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
+    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--bor);">
+      <span style="font-family:var(--mono);font-size:9px;background:${td.bg};color:${td.fg};padding:1px 6px;border-radius:2px;flex-shrink:0;margin-top:2px;">${r.theme.split(' ')[0]}</span>
+      <span style="font-size:11px;color:var(--txt);line-height:1.4;flex:1;cursor:pointer;" onclick="openSingleRaw(ROWS[${idx}])">${eh(txt.slice(0,160))}${txt.length>160?'…':''}</span>
+      <button onclick="blRemoveSignal('${blId}',${idx})" style="background:none;border:none;cursor:pointer;color:var(--txt3);font-size:11px;flex-shrink:0;">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function blRemoveSignal(blId,idx){
+  const ovs=blGetOverlays();
+  if(ovs[blId])ovs[blId]=ovs[blId].filter(i=>i!==idx);
+  blSaveOverlays(ovs);
+  blRenderSignalOverlay(blId);
+}
+
+// ── Drag baseline to issues/clusters/scenarios ────────────────
+function blDragStart(e,blId){
+  const b=blAllBaselines().find(x=>x.id===blId);if(!b)return;
+  e.dataTransfer.setData('text/plain',JSON.stringify({
+    type:'iss-baseline',blId,label:b.name+' ('+b.unit+')',steep:b.steep
+  }));
+}
+
+// ── Add baseline to issue ─────────────────────────────────────
+function blConnectToIssue(blId){
+  if(!issIssues.length){alert('Create an issue first in the Issues tab.');return;}
+  const b=blAllBaselines().find(x=>x.id===blId);if(!b)return;
+  // Show picker if multiple issues
+  if(issIssues.length===1){
+    blAttachToIssue(blId,issIssues[0].id);return;
+  }
+  const names=issIssues.map((iss,i)=>`${i+1}. ${iss.name}`).join('\n');
+  const choice=prompt(`Add "${b.name}" to which issue?\n\n${names}\n\nEnter number:`);
+  const idx=parseInt(choice)-1;
+  if(isNaN(idx)||idx<0||idx>=issIssues.length)return;
+  blAttachToIssue(blId,issIssues[idx].id);
+}
+
+function blAttachToIssue(blId,issId){
+  const b=blAllBaselines().find(x=>x.id===blId);if(!b)return;
+  const iss=issIssues.find(i=>i.id===issId);if(!iss)return;
+  if(iss.attached.some(a=>a.type==='baseline'&&a.ref===blId))return;
+  iss.attached.push({
+    id:'ia_'+Date.now(),type:'baseline',ref:blId,
+    label:b.name+' ('+b.steep+')',addedAt:new Date().toISOString()
+  });
+  iss.updatedAt=new Date().toISOString();
+  issSave();
+  const btn=document.querySelector(`[onclick="blConnectToIssue('${blId}')"]`);
+  if(btn){const p=btn.textContent;btn.textContent='Connected ✓';btn.style.color='var(--green)';setTimeout(()=>{btn.textContent=p;btn.style.color='';},1500);}
+}
+
+// ── Custom baselines ──────────────────────────────────────────
+function blNewCustom(){
+  const name=prompt('Projection name:','');if(!name||!name.trim())return;
+  const unit=prompt('Unit of measurement (e.g. "Billion USD", "% of population"):','');if(!unit)return;
+  const steep=prompt('STEEP category (Social/Technological/Economic/Environmental/Political/Legal):','Economic');
+  const source=prompt('Source (optional):','');
+  const description=prompt('Brief description (optional):','');
+
+  // Data entry
+  const dataStr=prompt(
+    'Enter data points as year:value pairs, one per line.\nExample:\n2000:6.1\n2010:6.9\n2020:7.8\n2030:8.5\n\n(Asterisk * after a year = projection start, e.g. 2024*:8.1)',''
+  );
+  if(!dataStr)return;
+
+  const data=[];let projStart=null;
+  dataStr.split('\n').forEach(line=>{
+    const m=line.trim().match(/^(\d{4})(\*?):([0-9.\-]+)$/);
+    if(m){
+      const yr=parseInt(m[1]);
+      if(m[2]==='*'&&!projStart)projStart=yr;
+      data.push({y:yr,v:parseFloat(m[3])});
+    }
+  });
+
+  if(!data.length){alert('No valid data points found. Format: year:value');return;}
+
+  const bl={
+    id:'blc_'+Date.now(),name:name.trim(),steep:steep||'Custom',
+    category:'Custom',unit:unit.trim(),
+    source:source||'User-defined',
+    description:description||'',
+    projectionStart:projStart,
+    data:data.sort((a,b)=>a.y-b.y)
+  };
+  blCustom.push(bl);
+  blSaveCustom();
+  blRenderList('');
+  blSelect(bl.id);
+}
+
+function blDeleteCustom(id){
+  if(!confirm('Delete this custom projection?'))return;
+  blCustom=blCustom.filter(b=>b.id!==id);
+  blSaveCustom();
+  blActiveId=null;
+  blRenderList('');
+  document.getElementById('bl-detail').innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:400px;color:var(--txt3);font-family:var(--mono);font-size:12px;text-align:center;gap:8px;"><div style="font-size:28px;">📈</div><div>Select a projection from the library</div></div>`;
+}
 const DASH_CFG_KEY='weaksig_dash_config';
 
 function getDashConfig(){
