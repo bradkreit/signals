@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Thoughts">
+<meta name="theme-color" content="#0F0E0C">
+<title>Capture Thought</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Libre+Baskerville:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0F0E0C;--sur:#1A1916;--sur2:#242220;--bor:#2E2C28;--bor2:#3D3A35;
+    --txt:#F2EFE8;--txt2:#9C9890;--txt3:#5C5A55;
+    --gold:#C8A96A;--green:#4A9A6A;--red:#C84B2F;--purple:#8B7CC8;
+    --mono:'DM Mono',monospace;--serif:'Libre Baskerville',serif;--sans:'DM Sans',sans-serif;
+    --safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--sans);overflow-x:hidden;}
+
+  .app{max-width:480px;margin:0 auto;padding:calc(var(--safe-top)+16px) 20px calc(var(--safe-bottom)+20px);display:flex;flex-direction:column;min-height:100%;}
+
+  /* Header */
+  .hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-shrink:0;}
+  .hdr-icon{width:32px;height:32px;background:var(--purple);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+  .hdr-title{font-family:var(--serif);font-size:16px;font-weight:700;}
+  .hdr-sub{font-family:var(--mono);font-size:9px;color:var(--txt3);letter-spacing:.08em;text-transform:uppercase;margin-top:1px;}
+  .settings-btn{background:none;border:1px solid var(--bor);border-radius:6px;width:32px;height:32px;cursor:pointer;color:var(--txt3);font-size:14px;display:flex;align-items:center;justify-content:center;}
+
+  /* Form */
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+  .field-label{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);}
+
+  textarea,input[type=text],input[type=url],select{
+    background:var(--sur);border:1px solid var(--bor);border-radius:8px;color:var(--txt);
+    font-family:var(--mono);font-size:13px;padding:12px 14px;width:100%;outline:none;
+    transition:border-color .15s;-webkit-appearance:none;appearance:none;line-height:1.5;
+  }
+  textarea:focus,input:focus,select:focus{border-color:var(--purple);}
+  textarea::placeholder,input::placeholder{color:var(--txt3);}
+  textarea{resize:none;min-height:100px;}
+  select{cursor:pointer;}
+  select option{background:var(--bg);}
+
+  /* Type chips */
+  .type-row{display:flex;flex-wrap:wrap;gap:7px;}
+  .type-chip{font-family:var(--mono);font-size:10px;padding:5px 12px;border-radius:20px;border:1px solid var(--bor);background:var(--sur);color:var(--txt2);cursor:pointer;transition:all .12s;user-select:none;}
+  .type-chip.selected{border-color:var(--purple);}
+  .type-chip.selected[data-type=observation]{background:#1B2E4A;color:#7AB4E8;border-color:#2D5FA0;}
+  .type-chip.selected[data-type=question]{background:#4A1B2E;color:#E87AB4;border-color:#D4537E;}
+  .type-chip.selected[data-type=hypothesis]{background:#2E1B4A;color:#B47AE8;border-color:#8B7CC8;}
+  .type-chip.selected[data-type=hunch]{background:#4A3A1B;color:#E8C47A;border-color:#C8A96A;}
+  .type-chip.selected[data-type=todo]{background:#1B4A2E;color:#7AE8B4;border-color:#4A9A6A;}
+  .type-chip.selected[data-type=lens]{background:#1B3A4A;color:#7AD4E8;border-color:#1D8A8A;}
+
+  /* Image upload */
+  .img-upload-area{border:2px dashed var(--bor2);border-radius:8px;padding:16px;text-align:center;cursor:pointer;transition:all .15s;position:relative;}
+  .img-upload-area:hover,.img-upload-area.over{border-color:var(--purple);background:rgba(139,124,200,.05);}
+  .img-upload-area input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+  .img-preview{width:100%;border-radius:6px;margin-top:8px;display:none;}
+  .img-description{font-size:11px;color:var(--txt2);font-style:italic;margin-top:8px;padding:8px 10px;background:var(--sur2);border-radius:4px;display:none;line-height:1.5;}
+
+  /* Checkboxes */
+  .check-row{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--txt2);}
+  .check-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--purple);}
+
+  /* Save button */
+  .save-btn{background:var(--purple);color:#fff;border:none;border-radius:10px;font-family:var(--mono);font-size:13px;font-weight:500;letter-spacing:.05em;padding:16px;cursor:pointer;width:100%;transition:all .15s;margin-top:8px;}
+  .save-btn:active{transform:scale(.98);opacity:.9;}
+  .save-btn:disabled{background:var(--sur2);color:var(--txt3);cursor:default;}
+  .save-btn .btn-inner{display:flex;align-items:center;justify-content:center;gap:8px;}
+
+  /* Toast */
+  .toast{position:fixed;bottom:calc(var(--safe-bottom)+24px);left:50%;transform:translateX(-50%) translateY(20px);background:var(--sur2);border:1px solid var(--bor2);border-radius:10px;padding:12px 20px;font-family:var(--mono);font-size:12px;color:var(--txt);white-space:nowrap;opacity:0;transition:all .25s cubic-bezier(.4,0,.2,1);pointer-events:none;z-index:100;max-width:calc(100vw - 40px);text-align:center;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast.success{border-color:var(--green);color:#6DCC94;}
+  .toast.error{border-color:var(--red);color:#E8896A;}
+
+  /* Settings panel */
+  .settings-panel{position:fixed;inset:0;background:var(--bg);z-index:50;display:flex;flex-direction:column;padding:calc(var(--safe-top)+16px) 20px calc(var(--safe-bottom)+20px);transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);max-width:480px;margin:0 auto;}
+  .settings-panel.open{transform:translateY(0);}
+
+  /* Spinner */
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+
+  @keyframes pulse-purple{0%{box-shadow:0 0 0 0 rgba(139,124,200,.4)}70%{box-shadow:0 0 0 12px rgba(139,124,200,0)}100%{box-shadow:0 0 0 0 rgba(139,124,200,0)}}
+  .save-btn.saving{animation:pulse-purple 1s infinite;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hdr">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="hdr-icon">💭</div>
+      <div>
+        <div class="hdr-title">Capture Thought</div>
+        <div class="hdr-sub">Weak Signal Tracker</div>
+      </div>
+    </div>
+    <button class="settings-btn" onclick="openSettings()">⚙</button>
+  </div>
+
+  <!-- Thought text -->
+  <div class="field">
+    <div class="field-label">Thought</div>
+    <textarea id="thought-text" placeholder="What are you thinking? A question, hunch, connection, something to explore…"></textarea>
+  </div>
+
+  <!-- Type -->
+  <div class="field">
+    <div class="field-label">Type</div>
+    <div class="type-row">
+      <span class="type-chip selected" data-type="observation" onclick="selectType(this)">Observation</span>
+      <span class="type-chip" data-type="question" onclick="selectType(this)">Question</span>
+      <span class="type-chip" data-type="hypothesis" onclick="selectType(this)">Hypothesis</span>
+      <span class="type-chip" data-type="hunch" onclick="selectType(this)">Hunch</span>
+      <span class="type-chip" data-type="todo" onclick="selectType(this)">To explore</span>
+      <span class="type-chip" data-type="lens" onclick="selectType(this)">Lens / frame</span>
+    </div>
+  </div>
+
+  <!-- Tags -->
+  <div class="field">
+    <div class="field-label">Tags <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--txt3);"> — optional</span></div>
+    <input type="text" id="thought-tags" placeholder="AI, labor, society…" autocorrect="off" autocapitalize="none">
+  </div>
+
+  <!-- Linked URL -->
+  <div class="field">
+    <div class="field-label">Linked URL <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--txt3);"> — optional</span></div>
+    <input type="url" id="thought-url" placeholder="https://…" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+    <button onclick="pasteURL()" style="background:none;border:none;cursor:pointer;font-family:var(--mono);font-size:9px;color:var(--gold);letter-spacing:.05em;align-self:flex-start;padding:2px 0;">Paste from clipboard ↓</button>
+  </div>
+
+  <!-- Image upload -->
+  <div class="field">
+    <div class="field-label">Photo / sketch <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--txt3);"> — optional · Claude will describe it</span></div>
+    <div class="img-upload-area" id="img-drop">
+      <input type="file" id="img-input" accept="image/*" capture="environment" onchange="handleImage(this)">
+      <div style="font-family:var(--mono);font-size:11px;color:var(--txt3);">📷 Tap to take photo or choose image</div>
+    </div>
+    <img id="img-preview" class="img-preview" alt="Preview">
+    <div id="img-description" class="img-description"></div>
+  </div>
+
+  <!-- Pin -->
+  <div class="field">
+    <label class="check-row">
+      <input type="checkbox" id="thought-pin">
+      Pin to pinboard (evergreen / always-visible anchor)
+    </label>
+  </div>
+
+  <!-- Save -->
+  <button class="save-btn" id="save-btn" onclick="saveThought()">
+    <div class="btn-inner" id="btn-inner"><span>Save thought</span></div>
+  </button>
+
+  <!-- Recent -->
+  <div id="recent-section" style="display:none;margin-top:20px;">
+    <div style="font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);margin-bottom:8px;">Recently saved</div>
+    <div id="recent-list"></div>
+  </div>
+</div>
+
+<!-- Settings panel -->
+<div class="settings-panel" id="settings-panel">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+    <div style="font-family:var(--serif);font-size:16px;font-weight:700;">Settings</div>
+    <button onclick="closeSettings()" style="background:none;border:1px solid var(--bor);border-radius:6px;width:28px;height:28px;cursor:pointer;color:var(--txt2);display:flex;align-items:center;justify-content:center;">✕</button>
+  </div>
+  <p style="font-family:var(--mono);font-size:10px;color:var(--txt3);line-height:1.7;margin-bottom:20px;">Stored locally on your device only.</p>
+  <div class="field">
+    <div class="field-label">Apps Script URL</div>
+    <input type="url" id="setting-url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+  </div>
+  <div class="field" style="margin-top:14px;">
+    <div class="field-label">Secret token</div>
+    <input type="text" id="setting-token" placeholder="your-secret-token" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+  </div>
+  <button onclick="saveSettings()" style="margin-top:16px;background:var(--sur2);border:1px solid var(--bor2);border-radius:8px;color:var(--txt);font-family:var(--mono);font-size:12px;padding:12px;cursor:pointer;width:100%;">Save settings</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const CFG_KEY='weaksig_thoughts_cfg';
+const RECENT_KEY='weaksig_thoughts_recent';
+
+function getConfig(){try{return JSON.parse(localStorage.getItem(CFG_KEY))||{};}catch(e){return{};}}
+
+// Settings
+function openSettings(){
+  const cfg=getConfig();
+  document.getElementById('setting-url').value=cfg.url||'';
+  document.getElementById('setting-token').value=cfg.token||'';
+  document.getElementById('settings-panel').classList.add('open');
+}
+function closeSettings(){document.getElementById('settings-panel').classList.remove('open');}
+function saveSettings(){
+  const url=document.getElementById('setting-url').value.trim();
+  const token=document.getElementById('setting-token').value.trim();
+  if(!url||!token){showToast('Enter both URL and token','error');return;}
+  localStorage.setItem(CFG_KEY,JSON.stringify({url,token}));
+  closeSettings();
+  showToast('Settings saved ✓','success');
+}
+
+// Type selection
+function selectType(el){
+  document.querySelectorAll('.type-chip').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function getSelectedType(){
+  return document.querySelector('.type-chip.selected')?.dataset.type||'observation';
+}
+
+// Paste URL
+async function pasteURL(){
+  try{
+    const text=await navigator.clipboard.readText();
+    if(text&&text.startsWith('http')){document.getElementById('thought-url').value=text;showToast('URL pasted','success');}
+    else showToast('No URL in clipboard','error');
+  }catch(e){document.getElementById('thought-url').focus();}
+}
+
+// Image handling
+let currentImageBase64=null;
+function handleImage(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const b64=e.target.result.split(',')[1];
+    currentImageBase64=b64;
+    document.getElementById('img-preview').src=e.target.result;
+    document.getElementById('img-preview').style.display='block';
+    document.getElementById('img-description').style.display='none';
+    document.getElementById('img-description').textContent='';
+    showToast('Image ready — description will be generated on save','');
+  };
+  reader.readAsDataURL(file);
+}
+
+// Save thought
+async function saveThought(){
+  const text=document.getElementById('thought-text').value.trim();
+  if(!text&&!currentImageBase64){showToast('Add a thought or photo first','error');return;}
+
+  const cfg=getConfig();
+  if(!cfg.url||!cfg.token){showToast('Set up your Apps Script URL first ⚙','error');openSettings();return;}
+
+  const btn=document.getElementById('save-btn');
+  const inner=document.getElementById('btn-inner');
+  btn.disabled=true;btn.classList.add('saving');
+  inner.innerHTML='<div class="spinner"></div><span>Saving…</span>';
+
+  const params=new URLSearchParams({
+    action:'saveThought',
+    token:cfg.token,
+    text,
+    type:getSelectedType(),
+    tags:document.getElementById('thought-tags').value.trim(),
+    linkedUrl:document.getElementById('thought-url').value.trim(),
+  });
+  if(currentImageBase64){
+    // Send image — note URLSearchParams encodes base64 safely
+    params.append('imageBase64',currentImageBase64);
+  }
+
+  try{
+    const res=await fetch(cfg.url+'?'+params.toString());
+    const data=await res.json();
+    if(data.success){
+      // Show Claude's image description if returned
+      if(data.imageDescription){
+        const descEl=document.getElementById('img-description');
+        descEl.textContent='📷 Claude: '+data.imageDescription;
+        descEl.style.display='block';
+      }
+      saveToRecent(text,getSelectedType());
+      onSuccess();
+    } else {
+      onError(data.error||'Save failed');
+    }
+  }catch(e){onError(e.message);}
+}
+
+function onSuccess(){
+  document.getElementById('thought-text').value='';
+  document.getElementById('thought-tags').value='';
+  document.getElementById('thought-url').value='';
+  document.getElementById('thought-pin').checked=false;
+  document.getElementById('img-preview').style.display='none';
+  document.getElementById('img-input').value='';
+  currentImageBase64=null;
+  // Don't clear description — let them see it
+  resetBtn();
+  showToast('Thought saved ✓','success');
+  document.getElementById('save-btn').style.background='#4A9A6A';
+  setTimeout(()=>{document.getElementById('save-btn').style.background='';},800);
+}
+function onError(msg){resetBtn();showToast('Error: '+msg,'error');}
+function resetBtn(){
+  const btn=document.getElementById('save-btn');
+  document.getElementById('btn-inner').innerHTML='<span>Save thought</span>';
+  btn.disabled=false;btn.classList.remove('saving');
+}
+
+// Recent
+function saveToRecent(text,type){
+  const r=JSON.parse(localStorage.getItem(RECENT_KEY)||'[]');
+  r.unshift({text,type,savedAt:new Date().toISOString()});
+  localStorage.setItem(RECENT_KEY,JSON.stringify(r.slice(0,5)));
+  renderRecent();
+}
+function renderRecent(){
+  const r=JSON.parse(localStorage.getItem(RECENT_KEY)||'[]');
+  const sec=document.getElementById('recent-section');
+  if(!r.length){sec.style.display='none';return;}
+  sec.style.display='block';
+  document.getElementById('recent-list').innerHTML=r.map(item=>`
+    <div style="padding:8px 0;border-bottom:1px solid var(--bor);font-family:var(--mono);font-size:10px;color:var(--txt3);">
+      <span style="color:var(--purple);">${item.type}</span> · ${item.text.slice(0,80)}${item.text.length>80?'…':''}
+    </div>`).join('');
+}
+
+// Toast
+let toastTimer=null;
+function showToast(msg,type){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast '+(type||'');
+  void t.offsetWidth;t.classList.add('show');
+  if(toastTimer)clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// Init
+document.addEventListener('DOMContentLoaded',()=>{
+  renderRecent();
+  const cfg=getConfig();
+  if(!cfg.url||!cfg.token)setTimeout(()=>showToast('Tap ⚙ to set up your Apps Script URL',''),600);
+  // Check for ?url= param (share sheet)
+  const p=new URLSearchParams(window.location.search);
+  const inUrl=p.get('url');
+  if(inUrl){document.getElementById('thought-url').value=decodeURIComponent(inUrl);window.history.replaceState({},'',window.location.pathname);}
+});
+</script>
+</body>
+</html>
