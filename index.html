@@ -985,6 +985,97 @@ async function fetchCSV(name){
 
 let ROWS=[],SUMS=[],VC,TC;
 
+// ── Sync thoughts from Google Sheet → localStorage ────────────
+// Tries the public CSV first; falls back to Apps Script endpoint.
+// The Thoughts sheet has columns:
+// A: Timestamp, B: Text, C: Type, D: Tags, E: LinkedURL, F: ImageDriveUrl, G: ImageDescription
+async function fetchThoughtsFromSheet(){
+  let sheetThoughts=[];
+
+  // Try public CSV first (works if sheet is shared publicly)
+  try{
+    const rows=await fetchCSV('Thoughts');
+    if(rows&&rows.length>=2){
+      sheetThoughts=rows.slice(1).map(r=>{
+        const ts=(r[0]||'').trim();
+        const text=(r[1]||'').trim();
+        if(!ts||!text)return null;
+        return{
+          id:'th_sheet_'+ts.replace(/\W/g,'_'),
+          text,
+          type:(r[2]||'observation').trim().toLowerCase()||'observation',
+          tags:(r[3]||'').trim().split(',').map(t=>t.trim()).filter(Boolean),
+          linkedUrl:(r[4]||'').trim(),
+          imageDriveUrl:(r[5]||'').trim(),
+          imageDescription:(r[6]||'').trim(),
+          imageBase64:null,
+          createdAt:ts,
+          pinned:false,
+          fromSheet:true
+        };
+      }).filter(Boolean);
+    }
+  }catch(csvErr){
+    // CSV failed — try Apps Script endpoint
+    console.log('Thoughts CSV failed, trying Apps Script:',csvErr.message);
+    try{
+      const cfg=getDashConfig();
+      if(cfg.appsScriptUrl&&cfg.appsScriptToken){
+        const url=`${cfg.appsScriptUrl}?action=getThoughts&token=${encodeURIComponent(cfg.appsScriptToken)}`;
+        const res=await fetch(url);
+        if(res.ok){
+          const data=await res.json();
+          if(data.success&&data.thoughts){
+            sheetThoughts=data.thoughts.map(t=>({
+              id:'th_sheet_'+t.timestamp.replace(/\W/g,'_'),
+              text:t.text,
+              type:t.type||'observation',
+              tags:t.tags?t.tags.split(',').map(x=>x.trim()).filter(Boolean):[],
+              linkedUrl:t.linkedUrl||'',
+              imageDriveUrl:t.imageDriveUrl||'',
+              imageDescription:t.imageDescription||'',
+              imageBase64:null,
+              createdAt:t.timestamp,
+              pinned:false,
+              fromSheet:true
+            }));
+          }
+        }
+      }
+    }catch(apiErr){
+      console.log('Thoughts Apps Script fallback also failed:',apiErr.message);
+      return; // Both failed — keep whatever is in localStorage
+    }
+  }
+
+  if(!sheetThoughts.length)return;
+
+  // Merge with existing localStorage thoughts
+  const existing=JSON.parse(localStorage.getItem(TH_KEY)||'[]');
+
+  // Preserve pinned status from previous sheet syncs
+  const pinnedMap={};
+  existing.filter(t=>t.fromSheet).forEach(t=>{if(t.pinned)pinnedMap[t.id]=true;});
+  sheetThoughts.forEach(t=>{if(pinnedMap[t.id])t.pinned=true;});
+
+  // Keep local-only thoughts, replace sheet thoughts with fresh data
+  const localOnly=existing.filter(t=>!t.fromSheet);
+  const merged=[...localOnly,...sheetThoughts].sort((a,b)=>
+    new Date(b.createdAt)-new Date(a.createdAt)
+  );
+
+  localStorage.setItem(TH_KEY,JSON.stringify(merged));
+
+  // Update in-memory if Thoughts tab already loaded
+  if(thInited){
+    thThoughts=merged;
+    thRenderPinboard();
+    thRenderRiver();
+  }
+
+  console.log('Thoughts synced:',sheetThoughts.length,'from sheet,',localOnly.length,'local');
+}
+
 async function loadAll(){
   document.getElementById('loading').style.display='block';
   document.getElementById('dash').style.display='none';
@@ -997,6 +1088,8 @@ async function loadAll(){
     const ar=await fetchCSV('Archive');
     lmsg.textContent='Fetching Summary… (Archive: '+ar.length+' rows)';
     const sr=await fetchCSV('Summary');
+    lmsg.textContent='Syncing thoughts…';
+    await fetchThoughtsFromSheet();
     lmsg.textContent='Processing '+lr.length+' LiveFeed + '+ar.length+' Archive rows…';
 
     ROWS=[];
@@ -4268,6 +4361,11 @@ function thInit(){
     thInited=true;
     const saved=localStorage.getItem(TH_KEY);
     if(saved){try{thThoughts=JSON.parse(saved);}catch(e){}}
+    // Sync from sheet in background whenever tab is opened
+    fetchThoughtsFromSheet();
+  } else {
+    // Re-sync each time tab is revisited
+    fetchThoughtsFromSheet();
   }
   thRenderPinboard();
   thRenderRiver();
