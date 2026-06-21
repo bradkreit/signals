@@ -160,6 +160,21 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
 .iss-scan-score{font-family:var(--mono);font-size:9px;color:var(--txt3);margin-bottom:3px;display:flex;gap:6px;align-items:center;}
 .iss-scan-bar{height:3px;border-radius:2px;background:var(--blue);opacity:.6;}
 .iss-scan-why{font-size:10px;color:var(--txt2);margin-top:4px;font-style:italic;line-height:1.4;}
+/* Thoughts tab */
+.th-card{background:var(--sur);border:1px solid var(--bor);border-radius:6px;padding:12px 14px;position:relative;transition:border-color .12s;}
+.th-card:hover{border-color:var(--bor2);}
+.th-card.pinned{border-left:3px solid var(--blue);}
+.th-type-badge{font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:10px;display:inline-block;}
+.th-pin-tile{background:var(--sur2);border:1px solid var(--bor);border-left:3px solid var(--blue);border-radius:4px;padding:10px 12px;min-width:160px;max-width:240px;cursor:pointer;position:relative;transition:box-shadow .12s;}
+.th-pin-tile:hover{box-shadow:0 2px 8px rgba(0,0,0,0.08);}
+/* Predictions tab */
+.pr-card{background:var(--sur);border:1px solid var(--bor);border-radius:6px;padding:16px 18px;transition:border-color .12s;}
+.pr-card:hover{border-color:var(--bor2);}
+.pr-era-badge{font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:10px;background:var(--sur2);color:var(--txt3);display:inline-block;}
+.pr-outcome-accurate{border-left:3px solid #2A7A52;}
+.pr-outcome-wrong{border-left:3px solid #C84B2F;}
+.pr-outcome-pending{border-left:3px solid #B8760F;}
+.pr-outcome-mixed{border-left:3px solid #5B4FA0;}
 </style>
 </head>
 <body>
@@ -241,6 +256,8 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
       <div class="tab" onclick="sw('sc2')">Scenarios</div>
       <div class="tab" onclick="sw('iss')">Issues</div>
       <div class="tab" onclick="sw('bl')">Baselines</div>
+      <div class="tab" onclick="sw('th')">Thoughts</div>
+      <div class="tab" onclick="sw('pr')">Predictions</div>
     </div>
     <div class="tp active" id="tp-ov">
       <div id="search-results" style="display:none;margin-bottom:16px;">
@@ -578,6 +595,132 @@ header{border-bottom:1px solid var(--bor);padding:24px 0 18px;margin-bottom:24px
             <div>Select a projection from the library</div>
             <div style="font-size:10px;">View long-term trends · overlay your signals · connect to issues</div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Thoughts tab ── -->
+    <div class="tp" id="tp-th">
+      <div style="display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start;">
+
+        <!-- Main: pinboard + river -->
+        <div>
+          <!-- Pinboard -->
+          <div style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;margin-bottom:16px;">
+            <div style="padding:12px 16px;border-bottom:1px solid var(--bor);display:flex;align-items:center;justify-content:space-between;">
+              <div>
+                <span style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3);">Pinboard — evergreen anchors</span>
+                <span style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-left:10px;">Always visible · pin from the river below</span>
+              </div>
+            </div>
+            <div id="th-pinboard" style="display:flex;flex-wrap:wrap;gap:10px;padding:14px 16px;min-height:80px;">
+              <div style="font-family:var(--mono);font-size:11px;color:var(--txt3);align-self:center;">No pinned thoughts yet — pin evergreen ideas from the river below.</div>
+            </div>
+          </div>
+
+          <!-- New thought input -->
+          <div style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;padding:14px 16px;margin-bottom:16px;">
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3);margin-bottom:8px;">Capture a thought</div>
+            <textarea id="th-new-text" placeholder="What are you thinking? Questions, hunches, connections, things to explore…"
+              style="width:100%;min-height:72px;font-family:var(--sans);font-size:13px;line-height:1.6;padding:8px 12px;background:var(--bg);border:1px solid var(--bor);border-radius:4px;color:var(--txt);resize:vertical;outline:none;transition:border-color .15s;"
+              onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--bor)'"></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap;">
+              <select id="th-new-type" style="font-family:var(--mono);font-size:11px;padding:5px 8px;border:1px solid var(--bor);border-radius:3px;background:var(--sur);color:var(--txt);cursor:pointer;">
+                <option value="observation">Observation</option>
+                <option value="question">Question</option>
+                <option value="hypothesis">Hypothesis</option>
+                <option value="hunch">Hunch</option>
+                <option value="todo">To explore</option>
+                <option value="lens">Lens / frame</option>
+              </select>
+              <input type="text" id="th-new-tags" placeholder="tags (comma separated)" style="font-family:var(--mono);font-size:11px;padding:5px 10px;border:1px solid var(--bor);border-radius:3px;background:var(--bg);color:var(--txt);outline:none;flex:1;min-width:120px;">
+              <label style="font-family:var(--mono);font-size:10px;color:var(--txt2);display:flex;align-items:center;gap:5px;cursor:pointer;">
+                <input type="checkbox" id="th-new-pin"> Pin to board
+              </label>
+              <button onclick="thSaveNew()" style="font-family:var(--mono);font-size:11px;padding:5px 16px;background:var(--blue);color:#fff;border:1px solid var(--blue);border-radius:3px;cursor:pointer;">Save thought</button>
+            </div>
+          </div>
+
+          <!-- River -->
+          <div style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;">
+            <div style="padding:12px 16px;border-bottom:1px solid var(--bor);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+              <span style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3);">River — recent thoughts</span>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <input type="text" id="th-search" placeholder="Filter…" oninput="thRenderRiver()" style="font-family:var(--mono);font-size:11px;padding:4px 9px;border:1px solid var(--bor);border-radius:3px;background:var(--bg);color:var(--txt);outline:none;width:140px;">
+                <select id="th-type-filter" onchange="thRenderRiver()" style="font-family:var(--mono);font-size:11px;padding:4px 8px;border:1px solid var(--bor);border-radius:3px;background:var(--sur);color:var(--txt);cursor:pointer;">
+                  <option value="">All types</option>
+                  <option value="observation">Observations</option>
+                  <option value="question">Questions</option>
+                  <option value="hypothesis">Hypotheses</option>
+                  <option value="hunch">Hunches</option>
+                  <option value="todo">To explore</option>
+                  <option value="lens">Lenses</option>
+                </select>
+              </div>
+            </div>
+            <div id="th-river" style="padding:12px 16px;display:flex;flex-direction:column;gap:8px;min-height:200px;">
+              <div style="font-family:var(--mono);font-size:11px;color:var(--txt3);">No thoughts yet. Add one above or save from bradkreit.com/thoughts</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: related signals panel -->
+        <div style="position:sticky;top:16px;">
+          <div style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;overflow:hidden;">
+            <div style="padding:10px 14px;border-bottom:1px solid var(--bor);">
+              <div style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3);margin-bottom:4px;">Related signals</div>
+              <div style="font-family:var(--mono);font-size:9px;color:var(--txt3);">Select a thought · click "Find signals"</div>
+            </div>
+            <div id="th-related-signals" style="padding:10px 12px;max-height:500px;overflow-y:auto;">
+              <div style="font-family:var(--mono);font-size:11px;color:var(--txt3);">Select a thought then click Find signals to surface connections.</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Predictions tab ── -->
+    <div class="tp" id="tp-pr">
+      <div style="display:grid;grid-template-columns:220px 1fr;gap:16px;align-items:start;">
+
+        <!-- Left: filters -->
+        <div style="background:var(--sur);border:1px solid var(--bor);border-radius:6px;overflow:hidden;position:sticky;top:16px;">
+          <div style="padding:12px 14px;border-bottom:1px solid var(--bor);">
+            <span style="font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3);">Filter</span>
+          </div>
+          <div style="padding:12px 14px;display:flex;flex-direction:column;gap:10px;">
+            <input type="text" id="pr-search" placeholder="Search predictions…" oninput="prRender()" style="width:100%;font-family:var(--mono);font-size:11px;padding:5px 9px;border:1px solid var(--bor);border-radius:3px;background:var(--bg);color:var(--txt);outline:none;">
+            <div>
+              <div style="font-family:var(--mono);font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;">Era made</div>
+              <div id="pr-era-filters" style="display:flex;flex-direction:column;gap:3px;"></div>
+            </div>
+            <div>
+              <div style="font-family:var(--mono);font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;">Theme</div>
+              <div id="pr-tag-filters" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+            </div>
+            <div>
+              <div style="font-family:var(--mono);font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;">Outcome</div>
+              <div style="display:flex;flex-direction:column;gap:3px;">
+                <label style="font-family:var(--mono);font-size:10px;color:var(--txt2);cursor:pointer;display:flex;align-items:center;gap:5px;"><input type="radio" name="pr-outcome" value="" onchange="prRender()" checked> All</label>
+                <label style="font-family:var(--mono);font-size:10px;color:var(--txt2);cursor:pointer;display:flex;align-items:center;gap:5px;"><input type="radio" name="pr-outcome" value="accurate" onchange="prRender()"> Largely accurate</label>
+                <label style="font-family:var(--mono);font-size:10px;color:var(--txt2);cursor:pointer;display:flex;align-items:center;gap:5px;"><input type="radio" name="pr-outcome" value="wrong" onchange="prRender()"> Wrong</label>
+                <label style="font-family:var(--mono);font-size:10px;color:var(--txt2);cursor:pointer;display:flex;align-items:center;gap:5px;"><input type="radio" name="pr-outcome" value="pending" onchange="prRender()"> Pending</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: predictions feed -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+            <div id="pr-count" style="font-family:var(--mono);font-size:11px;color:var(--txt3);"></div>
+            <div style="display:flex;gap:8px;">
+              <button onclick="prSortBy('year_made')" id="pr-sort-made" class="rbtn" style="font-size:10px;padding:3px 9px;background:var(--blue);color:#fff;border-color:var(--blue);">Sort: year made</button>
+              <button onclick="prSortBy('predicted_for')" id="pr-sort-for" class="rbtn" style="font-size:10px;padding:3px 9px;">Sort: predicted for</button>
+            </div>
+          </div>
+          <div id="pr-feed" style="display:flex;flex-direction:column;gap:10px;"></div>
         </div>
       </div>
     </div>
@@ -1438,7 +1581,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeD();});
 function sw(name){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.tp').forEach(p=>p.classList.remove('active'));
-  const idx=['ov','hm','wk','net','cl','sc2','iss','bl'].indexOf(name);
+  const idx=['ov','hm','wk','net','cl','sc2','iss','bl','th','pr'].indexOf(name);
   document.querySelectorAll('.tab')[idx].classList.add('active');
   document.getElementById('tp-'+name).classList.add('active');
   if(name==='net')renderNet('theme');
@@ -1446,6 +1589,8 @@ function sw(name){
   if(name==='sc2')sc2Init();
   if(name==='iss')issInit();
   if(name==='bl')blInit();
+  if(name==='th')thInit();
+  if(name==='pr')prInit();
 }
 
 // ── Cluster board ─────────────────────────────────────────────
@@ -4084,7 +4229,7 @@ function openDashSettings(){
   const cfg=getDashConfig();
   document.getElementById('setting-apps-url').value=cfg.appsScriptUrl||'';
   document.getElementById('setting-apps-token').value=cfg.appsScriptToken||'';
-  document.getElementById('dash-settings-ov').style.display='block';https://github.com/bradkreit/signals/blob/main/index.html
+  document.getElementById('dash-settings-ov').style.display='block';
   document.getElementById('dash-settings-panel').style.display='block';
 }
 
@@ -4104,6 +4249,358 @@ function saveDashSettings(){
   lup.textContent='Settings saved ✓';
   setTimeout(()=>lup.textContent=prev,2000);
 }
+
+// ── THOUGHTS ──────────────────────────────────────────────────
+const TH_KEY='weaksig_thoughts_v1';
+let thInited=false, thThoughts=[], thSelectedId=null;
+
+const TH_TYPES={
+  observation:{label:'Observation',bg:'#E6EEF7',fg:'#1B3E6B'},
+  question:   {label:'Question',   bg:'#FBEAF0',fg:'#72243E'},
+  hypothesis: {label:'Hypothesis', bg:'#EDE9F7',fg:'#3A3070'},
+  hunch:      {label:'Hunch',      bg:'#FBF0DE',fg:'#7A5009'},
+  todo:       {label:'To explore', bg:'#E5F1EA',fg:'#1A5C38'},
+  lens:       {label:'Lens',       bg:'#E4F3F3',fg:'#115555'},
+};
+
+function thInit(){
+  if(!thInited){
+    thInited=true;
+    const saved=localStorage.getItem(TH_KEY);
+    if(saved){try{thThoughts=JSON.parse(saved);}catch(e){}}
+  }
+  thRenderPinboard();
+  thRenderRiver();
+}
+
+function thSave(){
+  try{localStorage.setItem(TH_KEY,JSON.stringify(thThoughts));}catch(e){}
+}
+
+function thSaveNew(){
+  const text=document.getElementById('th-new-text').value.trim();
+  if(!text){alert('Please enter a thought first.');return;}
+  const type=document.getElementById('th-new-type').value;
+  const tags=document.getElementById('th-new-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  const pin=document.getElementById('th-new-pin').checked;
+  const thought={
+    id:'th_'+Date.now(),
+    text,type,tags,
+    pinned:pin,
+    createdAt:new Date().toISOString(),
+    linkedUrl:'',
+    imageBase64:null,
+    imageDescription:''
+  };
+  thThoughts.unshift(thought);
+  thSave();
+  document.getElementById('th-new-text').value='';
+  document.getElementById('th-new-tags').value='';
+  document.getElementById('th-new-pin').checked=false;
+  thRenderPinboard();
+  thRenderRiver();
+}
+
+function thDelete(id){
+  thThoughts=thThoughts.filter(t=>t.id!==id);
+  thSave();
+  thRenderPinboard();
+  thRenderRiver();
+  if(thSelectedId===id){
+    thSelectedId=null;
+    document.getElementById('th-related-signals').innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);">Select a thought then click Find signals.</div>`;
+  }
+}
+
+function thTogglePin(id){
+  const t=thThoughts.find(x=>x.id===id);
+  if(!t)return;
+  t.pinned=!t.pinned;
+  thSave();
+  thRenderPinboard();
+  thRenderRiver();
+}
+
+function thRenderPinboard(){
+  const el=document.getElementById('th-pinboard');if(!el)return;
+  const pinned=thThoughts.filter(t=>t.pinned);
+  if(!pinned.length){
+    el.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);align-self:center;">No pinned thoughts yet — pin evergreen ideas from the river below.</div>`;
+    return;
+  }
+  el.innerHTML=pinned.map(t=>{
+    const tp=TH_TYPES[t.type]||TH_TYPES.observation;
+    return `<div class="th-pin-tile" onclick="thSelect('${t.id}')">
+      <div style="font-size:11px;color:var(--txt);line-height:1.45;margin-bottom:6px;">${eh(t.text.slice(0,120))}${t.text.length>120?'…':''}</div>
+      <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;">
+        <span class="th-type-badge" style="background:${tp.bg};color:${tp.fg};">${tp.label}</span>
+        <button onclick="event.stopPropagation();thTogglePin('${t.id}')" title="Unpin" style="background:none;border:none;cursor:pointer;font-size:10px;color:var(--blue);font-family:var(--mono);">📌 unpin</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function thRenderRiver(){
+  const el=document.getElementById('th-river');if(!el)return;
+  const q=(document.getElementById('th-search')?.value||'').toLowerCase().trim();
+  const typeF=document.getElementById('th-type-filter')?.value||'';
+  let visible=thThoughts.filter(t=>{
+    if(typeF&&t.type!==typeF)return false;
+    if(q&&!(t.text.toLowerCase().includes(q)||(t.tags||[]).some(tg=>tg.toLowerCase().includes(q))))return false;
+    return true;
+  });
+  if(!visible.length){
+    el.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);">No thoughts match. ${thThoughts.length?'Try clearing the filter.':'Add your first thought above.'}</div>`;
+    return;
+  }
+  el.innerHTML=visible.map(t=>{
+    const tp=TH_TYPES[t.type]||TH_TYPES.observation;
+    const d=new Date(t.createdAt);
+    const ds=d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const isSelected=t.id===thSelectedId;
+    return `<div class="th-card${t.pinned?' pinned':''}" style="${isSelected?'border-color:var(--blue);background:var(--sur2);':''}" onclick="thSelect('${t.id}')">
+      <div style="font-size:13px;color:var(--txt);line-height:1.6;margin-bottom:8px;">${eh(t.text)}</div>
+      ${t.imageDescription?`<div style="font-size:11px;color:var(--txt2);font-style:italic;padding:6px 10px;background:var(--sur2);border-radius:3px;margin-bottom:8px;">📷 ${eh(t.imageDescription.slice(0,200))}</div>`:''}
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span class="th-type-badge" style="background:${tp.bg};color:${tp.fg};">${tp.label}</span>
+        <span style="font-family:var(--mono);font-size:9px;color:var(--txt3);">${ds}</span>
+        ${(t.tags||[]).map(tg=>`<span style="font-family:var(--mono);font-size:9px;padding:1px 6px;border-radius:8px;background:var(--sur2);color:var(--txt3);border:1px solid var(--bor);">${eh(tg)}</span>`).join('')}
+        ${t.linkedUrl?`<a href="${eh(t.linkedUrl)}" target="_blank" onclick="event.stopPropagation()" style="font-family:var(--mono);font-size:9px;color:var(--blue);">↗ link</a>`:''}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button onclick="event.stopPropagation();thTogglePin('${t.id}')" style="font-family:var(--mono);font-size:9px;background:none;border:1px solid var(--bor);border-radius:3px;padding:2px 8px;cursor:pointer;color:${t.pinned?'var(--blue)':'var(--txt3)'};">${t.pinned?'📌 pinned':'📌 pin'}</button>
+        <button onclick="event.stopPropagation();thFindSignals('${t.id}')" style="font-family:var(--mono);font-size:9px;background:none;border:1px solid var(--bor);border-radius:3px;padding:2px 8px;cursor:pointer;color:var(--txt2);">🔍 Find signals</button>
+        <button onclick="event.stopPropagation();thDelete('${t.id}')" style="font-family:var(--mono);font-size:9px;background:none;border:none;cursor:pointer;color:var(--txt3);">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function thSelect(id){
+  thSelectedId=id;
+  thRenderRiver();
+}
+
+function thFindSignals(id){
+  const t=thThoughts.find(x=>x.id===id);if(!t)return;
+  thSelectedId=id;
+  thRenderRiver();
+
+  const el=document.getElementById('th-related-signals');if(!el)return;
+  el.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--txt2);padding:8px 0;text-align:center;"><div class="spin" style="margin:0 auto 8px;width:20px;height:20px;border-width:2px;"></div>Scanning…</div>`;
+
+  // Extract keywords
+  const stops=new Set(['the','and','for','are','but','not','you','all','can','had','was','one','our','get','has','how','its','may','now','put','say','she','too','use','who','why','yet','have','this','that','with','from','they','been','were','than','then','when','into','them','some','what','will','your','just','more','also','does','even','like','most','over','such','well','only','very','their','there','these','those','could','about','after','other','would','which']);
+  const words=new Set((t.text+' '+(t.tags||[]).join(' ')).toLowerCase().split(/\W+/).filter(w=>w.length>=3&&!stops.has(w)));
+
+  // Score signals
+  const scored=ROWS.map((r,idx)=>{
+    const hay=(r.content+' '+(r.aiSummary||'')+' '+(r.tags||'')+' '+(r.entities||'')).toLowerCase();
+    let score=0;
+    words.forEach(w=>{if(hay.includes(w))score++;});
+    if(r.theme&&[...words].some(w=>r.theme.toLowerCase().includes(w)))score+=3;
+    return{idx,score,r};
+  }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,12);
+
+  if(!scored.length){
+    el.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);padding:8px 0;">No matching signals found. Try rephrasing the thought with more specific terms.</div>`;
+    return;
+  }
+
+  el.innerHTML=`<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.07em;">${scored.length} related signals</div>`+
+    scored.map(({r,idx})=>{
+      const td=TM[r.theme]||{c:'#888',bg:'#eee',fg:'#555'};
+      const txt=r.content.replace(/https?:\/\/\S+/g,'').trim();
+      return `<div style="padding:7px 0;border-bottom:1px solid var(--bor);cursor:pointer;" onclick="openSingleRaw(ROWS[${idx}])">
+        <div style="font-size:11px;color:var(--txt);line-height:1.4;margin-bottom:4px;">${eh(txt.slice(0,120))}${txt.length>120?'…':''}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;">
+          <span style="font-family:var(--mono);font-size:8px;background:${td.bg};color:${td.fg};padding:1px 5px;border-radius:2px;">${r.theme.split(' ')[0]}</span>
+          <span style="font-family:var(--mono);font-size:8px;color:var(--txt3);">${r.date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
+        </div>
+      </div>`;
+    }).join('');
+}
+
+// ── PREDICTIONS ───────────────────────────────────────────────
+let prInited=false, prSort='year_made', prEraFilter='', prTagFilter='';
+
+// Outcome classifier — simple keyword matching on outcome text
+function prOutcomeClass(p){
+  if(!p.outcome)return'pending';
+  const o=p.outcome.toLowerCase();
+  if(/too early|pending|unfolding|ongoing|unclear|contested/.test(o))return'pending';
+  if(/accurate|prescient|correct|validated|vindicated|broadly right/.test(o))return'accurate';
+  if(/wrong|incorrect|failed|spectacularly|never|not occurred|overstated/.test(o))return'wrong';
+  return'mixed';
+}
+
+function prInit(){
+  if(prInited)return;
+  prInited=true;
+  prBuildFilters();
+  prRender();
+}
+
+function prBuildFilters(){
+  // Era filters
+  const eras=[['1890–1929',1890,1929],['1930–1959',1930,1959],['1960–1979',1960,1979],['1980–1999',1980,1999],['2000–2015',2000,2015],['2016–present',2016,2100]];
+  document.getElementById('pr-era-filters').innerHTML=eras.map(([label,from,to])=>`
+    <label style="font-family:var(--mono);font-size:10px;color:var(--txt2);cursor:pointer;display:flex;align-items:center;gap:5px;">
+      <input type="radio" name="pr-era" value="${from}-${to}" onchange="prEraFilter=this.value;prRender()"> ${label}
+    </label>`).join('')+`<label style="font-family:var(--mono);font-size:10px;color:var(--txt2);cursor:pointer;display:flex;align-items:center;gap:5px;"><input type="radio" name="pr-era" value="" onchange="prEraFilter='';prRender()" checked> All eras</label>`;
+
+  // Tag filters — collect all unique tags
+  const allTags=new Set();
+  PREDICTIONS_FULL.forEach(p=>(p.tags||[]).forEach(t=>allTags.add(t)));
+  document.getElementById('pr-tag-filters').innerHTML=[...allTags].sort().map(t=>`
+    <span onclick="prTagFilter=prTagFilter===\'${t}\'?\'':\'${t}\';prRender();this.style.background=prTagFilter===\'${t}\'?\'var(--blue)\':\'var(--sur2)\';this.style.color=prTagFilter===\'${t}\'?\'#fff\':\'var(--txt3)\';"
+      style="font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:10px;background:var(--sur2);color:var(--txt3);cursor:pointer;border:1px solid var(--bor);">${eh(t)}</span>`).join('');
+}
+
+function prSortBy(field){
+  prSort=field;
+  document.getElementById('pr-sort-made').style.cssText=field==='year_made'?'font-size:10px;padding:3px 9px;background:var(--blue);color:#fff;border-color:var(--blue);':'font-size:10px;padding:3px 9px;';
+  document.getElementById('pr-sort-for').style.cssText=field==='predicted_for'?'font-size:10px;padding:3px 9px;background:var(--blue);color:#fff;border-color:var(--blue);':'font-size:10px;padding:3px 9px;';
+  prRender();
+}
+
+function prRender(){
+  const q=(document.getElementById('pr-search')?.value||'').toLowerCase().trim();
+  const outcomeF=document.querySelector('input[name="pr-outcome"]:checked')?.value||'';
+
+  let filtered=PREDICTIONS_FULL.filter(p=>{
+    if(q&&!((p.prediction+' '+(p.predictor||'')+' '+(p.outcome||'')+' '+(p.source||'')).toLowerCase().includes(q)))return false;
+    if(prTagFilter&&!(p.tags||[]).includes(prTagFilter))return false;
+    if(prEraFilter){
+      const[from,to]=prEraFilter.split('-').map(Number);
+      if(p.year_made<from||p.year_made>to)return false;
+    }
+    if(outcomeF){
+      const oc=prOutcomeClass(p);
+      if(outcomeF==='accurate'&&oc!=='accurate')return false;
+      if(outcomeF==='wrong'&&oc!=='wrong')return false;
+      if(outcomeF==='pending'&&oc!=='pending')return false;
+    }
+    return true;
+  });
+
+  filtered.sort((a,b)=>prSort==='year_made'?(a.year_made-b.year_made):(a.predicted_for-b.predicted_for));
+
+  document.getElementById('pr-count').textContent=filtered.length+' prediction'+(filtered.length!==1?'s':'');
+
+  const outcomeColors={accurate:'#2A7A52',wrong:'#C84B2F',pending:'#B8760F',mixed:'#5B4FA0'};
+  const outcomeLabels={accurate:'Largely accurate',wrong:'Wrong',pending:'Pending / too early',mixed:'Mixed / debated'};
+
+  document.getElementById('pr-feed').innerHTML=filtered.map(p=>{
+    const oc=prOutcomeClass(p);
+    const tagHtml=(p.tags||[]).map(t=>`<span style="font-family:var(--mono);font-size:9px;padding:1px 6px;border-radius:8px;background:var(--sur2);color:var(--txt3);border:1px solid var(--bor);">${eh(t)}</span>`).join('');
+    return `<div class="pr-card pr-outcome-${oc}">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+        <div>
+          <div style="font-family:var(--mono);font-size:11px;font-weight:500;color:var(--txt);">${eh(p.predictor||'Unknown')}</div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:2px;">${p.source?eh(p.source):''}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+          <span class="pr-era-badge">${p.year_made} → ${p.predicted_for}</span>
+          <span style="font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:10px;background:${outcomeColors[oc]}22;color:${outcomeColors[oc]};border:1px solid ${outcomeColors[oc]}44;">${outcomeLabels[oc]}</span>
+        </div>
+      </div>
+      <blockquote style="border-left:3px solid var(--bor2);padding-left:12px;margin:0 0 10px;font-size:13px;color:var(--txt);line-height:1.6;font-style:italic;">${eh(p.prediction)}</blockquote>
+      ${p.outcome?`<div style="font-size:12px;color:var(--txt2);line-height:1.5;margin-bottom:8px;"><strong style="font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);">What happened: </strong>${eh(p.outcome)}</div>`:''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        ${tagHtml}
+        ${p.url?`<a href="${eh(p.url)}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:9px;color:var(--blue);text-decoration:none;border:1px solid var(--bor);padding:1px 7px;border-radius:3px;">↗ source</a>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Full predictions dataset (expanded)
+const PREDICTIONS_FULL=[
+  {year_made:1893,predicted_for:1993,predictor:"World's Columbian Exposition futurists",source:"Reports of the U.S. Commissioners to the World's Columbian Exposition",prediction:"By 1993, the US would have a population of 500 million and cities of 50 million people.",outcome:"US population reached 258 million in 1993; largest city was New York at 7.3 million.",tags:["demographics","urban","society"],url:"https://archive.org/details/reportofcommissi01worl"},
+  {year_made:1900,predicted_for:2000,predictor:"John Elfreth Watkins Jr.",source:"Ladies Home Journal, December 1900",prediction:"There will be no C, X, or Q in the English alphabet. Hot and cold air will come from spigots in every house.",outcome:"Alphabet unchanged; HVAC broadly accurate.",tags:["society","technology"],url:""},
+  {year_made:1909,predicted_for:2009,predictor:"E.M. Forster",source:"The Machine Stops (short story)",prediction:"Humanity will live communicating only through a global machine. Direct experience will be devalued. The machine will eventually fail catastrophically.",outcome:"Remarkably prescient about internet dependency and screen-mediated life.",tags:["technology","society","mental health"],url:""},
+  {year_made:1911,predicted_for:2011,predictor:"Thomas Edison",source:"Miami Metropolis interview, 1911",prediction:"Books will soon be obsolete in the schools. Scholars will be instructed through the eye.",outcome:"Partially accurate — video learning widespread but books persist.",tags:["education","technology","media"],url:""},
+  {year_made:1922,predicted_for:1960,predictor:"H.G. Wells",source:"A Short History of the World",prediction:"Atomic energy will be harnessed within 40 years, transforming civilization.",outcome:"Accurate — nuclear power plants operational by 1960.",tags:["technology","energy"],url:""},
+  {year_made:1926,predicted_for:2000,predictor:"Nikola Tesla",source:"Colliers Weekly interview",prediction:"When wireless is perfectly applied the whole earth will be converted into a huge brain. We shall be able to communicate with one another instantly, irrespective of distance.",outcome:"Remarkably accurate description of the internet.",tags:["technology","connectivity"],url:""},
+  {year_made:1945,predicted_for:1985,predictor:"Vannevar Bush",source:"As We May Think, Atlantic Monthly",prediction:"A device called the Memex will allow individuals to store and retrieve all books, records, and communications, linked by association rather than index.",outcome:"Describes hypertext and the web almost exactly — realized ~50 years later.",tags:["technology","media","AI"],url:"https://www.theatlantic.com/magazine/archive/1945/07/as-we-may-think/303881/"},
+  {year_made:1948,predicted_for:1984,predictor:"George Orwell",source:"Nineteen Eighty-Four",prediction:"A totalitarian surveillance state will monitor all citizens through telescreens. History will be continuously rewritten.",outcome:"Surveillance elements accurate; total state control less so in democracies.",tags:["politics","privacy","technology","media"],url:""},
+  {year_made:1950,predicted_for:2000,predictor:"Alan Turing",source:"Computing Machinery and Intelligence, Mind",prediction:"By 2000, computers will be able to play the imitation game convincing humans they are human at least 30% of the time after 5 minutes of conversation.",outcome:"Chatbots increasingly pass informal Turing tests; formal benchmark contested.",tags:["AI","technology"],url:"https://academic.oup.com/mind/article/LIX/236/433/986238"},
+  {year_made:1957,predicted_for:1977,predictor:"Herbert Simon & Allen Newell",source:"Heuristic Problem Solving, Operations Research",prediction:"Within 10 years a computer will be the world's chess champion.",outcome:"Took 40 years — Deep Blue beat Kasparov in 1997.",tags:["AI","technology"],url:""},
+  {year_made:1960,predicted_for:1985,predictor:"Theodore Gordon & Olaf Helmer",source:"Report on a Long-Range Forecasting Study, RAND",prediction:"By 1984, machines will be capable of educating children more effectively than teachers.",outcome:"EdTech has grown but has not replaced teachers.",tags:["education","technology","AI"],url:""},
+  {year_made:1962,predicted_for:1980,predictor:"Marshall McLuhan",source:"The Gutenberg Galaxy",prediction:"Electronic media will create a global village — a retribalizing of humanity through shared electronic experience.",outcome:"Prescient about social media; underestimated fragmentation and polarization.",tags:["media","technology","society"],url:""},
+  {year_made:1962,predicted_for:2000,predictor:"Rachel Carson",source:"Silent Spring",prediction:"Unchecked pesticide use will destroy ecosystems, harm human health, and cause mass species extinction.",outcome:"Substantially accurate; led to DDT ban; biodiversity loss continues.",tags:["environment","health","politics"],url:""},
+  {year_made:1964,predicted_for:2000,predictor:"Isaac Asimov",source:"New York World's Fair essay",prediction:"By 2014 appliances will be run on power that is beamed in from solar stations in space. Much food will be grown underground.",outcome:"Neither has occurred at scale.",tags:["technology","energy","food"],url:""},
+  {year_made:1965,predicted_for:2015,predictor:"Gordon Moore",source:"Cramming More Components onto Integrated Circuits, Electronics",prediction:"The number of transistors on a chip will double approximately every two years.",outcome:"Accurate for ~50 years; now slowing but 3D stacking continues progress.",tags:["technology","AI","computing"],url:""},
+  {year_made:1968,predicted_for:2001,predictor:"Arthur C. Clarke & Stanley Kubrick",source:"2001: A Space Odyssey",prediction:"By 2001 there will be commercially operated space stations, moon bases, and AI will be conversational and self-aware.",outcome:"No moon bases; conversational AI arrived ~20 years later.",tags:["technology","AI","space"],url:""},
+  {year_made:1968,predicted_for:1990,predictor:"Paul Ehrlich",source:"The Population Bomb",prediction:"Hundreds of millions will starve to death in the 1970s. By 1980 life expectancy in the US will drop to 42 years.",outcome:"Wrong — Green Revolution prevented mass famine; life expectancy rose.",tags:["demographics","food","health"],url:""},
+  {year_made:1970,predicted_for:1990,predictor:"Alvin Toffler",source:"Future Shock",prediction:"Society will be overwhelmed by too-rapid change. The pace of change itself will become the primary stressor of modern life.",outcome:"Widely cited as vindicated by information overload and digital anxiety.",tags:["society","technology","mental health"],url:""},
+  {year_made:1972,predicted_for:2050,predictor:"Club of Rome",source:"Limits to Growth",prediction:"Industrial civilization will face resource depletion and pollution collapse in the 21st century if exponential growth continues.",outcome:"Model scenarios track actual data closely; widely debated.",tags:["environment","economy","technology"],url:"https://www.clubofrome.org/publication/the-limits-to-growth/"},
+  {year_made:1973,predicted_for:2000,predictor:"E.F. Schumacher",source:"Small Is Beautiful",prediction:"The obsession with economic growth will produce a crisis of meaning and ecological collapse. Human-scale economics will eventually be necessary.",outcome:"Ecological stress accurate; degrowth movement growing but not mainstream.",tags:["economy","environment","society"],url:""},
+  {year_made:1975,predicted_for:2000,predictor:"Ted Nelson",source:"Computer Lib / Dream Machines",prediction:"All human knowledge will be interlinked in a global hypertext system called Xanadu, with micropayments to authors.",outcome:"Web realized hypertext; micropayments and Xanadu never succeeded.",tags:["technology","media"],url:""},
+  {year_made:1978,predicted_for:2000,predictor:"Ivan Illich",source:"Toward a History of Needs",prediction:"Institutions will expand until they become obstacles to the very ends they serve — schools will prevent learning, hospitals will cause illness.",outcome:"Partially validated — healthcare-acquired infections, credential inflation.",tags:["education","health","society"],url:""},
+  {year_made:1980,predicted_for:2000,predictor:"Alvin Toffler",source:"The Third Wave",prediction:"The industrial age will give way to an information age. The home will become a unit of production again. Mass customization will replace mass production.",outcome:"Largely accurate — gig economy, remote work, personalized manufacturing.",tags:["labor","technology","society"],url:""},
+  {year_made:1982,predicted_for:2000,predictor:"John Naisbitt",source:"Megatrends",prediction:"High tech will demand high touch — the more we rely on technology, the more we need human connection.",outcome:"Contested by loneliness epidemic; information economy accurate.",tags:["technology","society","mental health"],url:""},
+  {year_made:1982,predicted_for:1990,predictor:"William Gibson",source:"Burning Chrome (short story)",prediction:"A global computer network called cyberspace will become a social and economic space in its own right, with its own culture and crime.",outcome:"Prescient — coined cyberspace; internet culture largely as described.",tags:["technology","society","media"],url:""},
+  {year_made:1984,predicted_for:2000,predictor:"William Gibson",source:"Neuromancer",prediction:"Megacorporations will eclipse nation-states. Street-level technology subcultures will coexist with extreme corporate surveillance.",outcome:"Corporations: accurate. Surveillance: accurate. Neural interfaces: early stages.",tags:["technology","politics","AI","privacy"],url:""},
+  {year_made:1985,predicted_for:2010,predictor:"Stewart Brand",source:"Whole Earth Software Catalog",prediction:"Information wants to be free — the tension between information freedom and information control will define the next era.",outcome:"Remains the defining tension of the digital age.",tags:["technology","media","politics"],url:""},
+  {year_made:1987,predicted_for:2020,predictor:"Paul Kennedy",source:"The Rise and Fall of the Great Powers",prediction:"The US will experience imperial overstretch and relative decline as the costs of global military commitments exceed economic capacity.",outcome:"Debated but broadly supported by post-2003 evidence.",tags:["politics","economy"],url:""},
+  {year_made:1988,predicted_for:2020,predictor:"James Hansen",source:"Congressional testimony, NASA",prediction:"Human-caused greenhouse warming will become clearly apparent within the next decade and cause severe disruption by 2020.",outcome:"Largely accurate; 2023-24 temperatures exceeded 1.5°C for first time.",tags:["environment","climate","politics"],url:"https://climatechange.nasa.gov/"},
+  {year_made:1989,predicted_for:2009,predictor:"Francis Fukuyama",source:"The End of History?, The National Interest",prediction:"Liberal democracy represents the final form of human government. History understood as the evolution of political systems has ended.",outcome:"Dramatically wrong — democratic backsliding, nationalism resurgent from 2010s.",tags:["politics","society"],url:"https://www.nationalinterest.org/article/the-end-of-history-3795"},
+  {year_made:1990,predicted_for:2010,predictor:"George Gilder",source:"Life After Television",prediction:"The television will be replaced by a device the size of a wristwatch connected to a global information network.",outcome:"Prescient about smartphones and streaming.",tags:["technology","media"],url:""},
+  {year_made:1992,predicted_for:2017,predictor:"Neal Stephenson",source:"Snow Crash",prediction:"A virtual reality metaverse will become the dominant social and commercial space. Linguistic viruses will be a vector of social control.",outcome:"Metaverse attempted (Meta); meme virality as social control broadly accurate.",tags:["technology","society","media"],url:""},
+  {year_made:1993,predicted_for:2010,predictor:"Howard Rheingold",source:"The Virtual Community",prediction:"Online communities will become genuine communities with social norms, mutual aid, and collective identity.",outcome:"Accurate, though he underestimated toxicity and tribalism.",tags:["technology","society"],url:""},
+  {year_made:1994,predicted_for:2004,predictor:"Bill Gates",source:"The Road Ahead",prediction:"The internet will transform commerce. A wallet PC will carry all your documents, money, and communications.",outcome:"Commerce: accurate. Wallet PC: describes smartphone, arrived 2007.",tags:["technology","economy"],url:""},
+  {year_made:1995,predicted_for:2005,predictor:"Clifford Stoll",source:"Silicon Snake Oil",prediction:"The internet is vastly overhyped. Cyberbusiness will never replace real stores. Computers will never replace real teachers.",outcome:"Spectacularly wrong on commerce; partially right that human teachers persist.",tags:["technology","economy","education"],url:""},
+  {year_made:1995,predicted_for:2015,predictor:"Nicholas Negroponte",source:"Being Digital",prediction:"Nations will become irrelevant as the internet renders borders meaningless.",outcome:"Wrong — nationalism resurged; data sovereignty reinforced borders.",tags:["politics","technology"],url:""},
+  {year_made:1996,predicted_for:2016,predictor:"Samuel Huntington",source:"The Clash of Civilizations",prediction:"Post-Cold War conflict will be driven by cultural and religious identity rather than ideology or economics.",outcome:"Debated — some evidence for it; critics say it oversimplifies.",tags:["politics","society"],url:""},
+  {year_made:1996,predicted_for:2006,predictor:"Clayton Christensen",source:"The Innovator's Dilemma",prediction:"Established companies will repeatedly fail to respond to disruptive innovation from below, even when they see it coming.",outcome:"Validated repeatedly — Kodak, Blockbuster, Nokia, newspapers.",tags:["economy","technology"],url:""},
+  {year_made:1997,predicted_for:2022,predictor:"Peter Schwartz & Peter Leyden",source:"The Long Boom, Wired",prediction:"A 25-year global boom driven by technology and globalization will create unprecedented prosperity, ending poverty and spreading democracy.",outcome:"Prosperity uneven; inequality rose; 2008 crash interrupted; democracy declined.",tags:["economy","politics","technology"],url:"https://www.wired.com/1997/07/longboom/"},
+  {year_made:1998,predicted_for:2010,predictor:"Paul Krugman",source:"The Accidental Theorist",prediction:"The internet's economic impact will be no greater than the fax machine's.",outcome:"Wrong — one of the most-cited failed predictions by an economist.",tags:["economy","technology"],url:""},
+  {year_made:1999,predicted_for:2009,predictor:"Ray Kurzweil",source:"The Age of Spiritual Machines",prediction:"By 2009, computers will disappear as distinct physical objects. Displays built into eyeglasses will beam images onto the retina.",outcome:"Early — AR glasses exist but not mainstream by 2009.",tags:["technology","AI"],url:""},
+  {year_made:2000,predicted_for:2020,predictor:"Jeremy Rifkin",source:"The Age of Access",prediction:"Ownership will give way to access. Markets for goods will be replaced by short-term leases and subscriptions.",outcome:"Accurate — Netflix, Spotify, Uber, SaaS, subscription economy.",tags:["economy","technology","society"],url:""},
+  {year_made:2002,predicted_for:2022,predictor:"Daniel Kahneman",source:"Maps of Bounded Rationality, Nobel lecture",prediction:"Human decision-making is systematically biased in ways that markets and institutions do not correct for.",outcome:"Validated and extended; behavioral economics now mainstream.",tags:["society","economy"],url:"https://www.nobelprize.org/prizes/economic-sciences/2002/kahneman/lecture/"},
+  {year_made:2003,predicted_for:2023,predictor:"Robert Putnam",source:"Better Together",prediction:"Social capital will continue to erode as Americans withdraw from civic life into privatized entertainment.",outcome:"Validated — loneliness epidemic, civic disengagement accelerated.",tags:["society","mental health"],url:""},
+  {year_made:2004,predicted_for:2014,predictor:"Chris Anderson",source:"The Long Tail, Wired",prediction:"Digital distribution will end the tyranny of the hit. Niche products will collectively outsell mainstream ones.",outcome:"Partially accurate — streaming enables niches but hits are bigger than ever.",tags:["media","economy","technology"],url:"https://www.wired.com/2004/10/tail/"},
+  {year_made:2005,predicted_for:2020,predictor:"Thomas Friedman",source:"The World Is Flat",prediction:"Globalization will flatten economic hierarchies, enabling workers anywhere to compete equally.",outcome:"China rise accurate; flattening overstated — inequality within countries rose.",tags:["economy","labor","technology"],url:""},
+  {year_made:2005,predicted_for:2025,predictor:"Nassim Taleb",source:"Fooled by Randomness",prediction:"Experts systematically underestimate the role of rare unpredictable events in shaping history.",outcome:"Validated — 2008 crash, COVID, AI disruption all fit the Black Swan model.",tags:["economy","society"],url:""},
+  {year_made:2006,predicted_for:2016,predictor:"Yochai Benkler",source:"The Wealth of Networks",prediction:"Networked peer production will create a new sector of social sharing that challenges both markets and states.",outcome:"Open source, Wikipedia accurate; platform capture of commons not predicted.",tags:["technology","economy","media"],url:""},
+  {year_made:2006,predicted_for:2016,predictor:"Al Gore",source:"An Inconvenient Truth",prediction:"Within 10 years the world will face a true planetary emergency from climate change if drastic action is not taken.",outcome:"Emergency framing validated; action insufficient; 1.5°C threshold crossed.",tags:["environment","climate","politics"],url:""},
+  {year_made:2007,predicted_for:2030,predictor:"IPCC AR4",source:"Fourth Assessment Report",prediction:"Global temperatures will rise 1.1-6.4°C by 2100. Extreme weather will intensify. Sea levels will rise.",outcome:"Tracking toward higher end of projections.",tags:["environment","climate"],url:"https://www.ipcc.ch/report/ar4/syr/"},
+  {year_made:2008,predicted_for:2018,predictor:"Nicholas Carr",source:"Is Google Making Us Stupid?, The Atlantic",prediction:"The internet is rewiring our brains, shortening attention spans, and making deep reading impossible.",outcome:"Supported by subsequent research on attention and reading comprehension.",tags:["technology","education","mental health","media"],url:"https://www.theatlantic.com/magazine/archive/2008/07/is-google-making-us-stupid/306868/"},
+  {year_made:2008,predicted_for:2020,predictor:"Eric Schmidt",source:"Various interviews",prediction:"Every young person will have to change their name when they come of age to escape their embarrassing digital past.",outcome:"Privacy concerns real but name-changing hasn't happened at scale.",tags:["technology","privacy","society"],url:""},
+  {year_made:2009,predicted_for:2019,predictor:"Clay Shirky",source:"Here Comes Everybody",prediction:"The internet will enable mass coordination without organizations. Citizens will route around institutional failure.",outcome:"Arab Spring validated; also enabled coordinated harassment and disinfo.",tags:["technology","politics","society"],url:""},
+  {year_made:2010,predicted_for:2020,predictor:"Evgeny Morozov",source:"The Net Delusion",prediction:"Authoritarian regimes will use the internet more effectively for surveillance and control than dissidents will use it for liberation.",outcome:"Validated — China's social credit, Russia's disinformation, algorithmic control.",tags:["politics","technology","privacy"],url:""},
+  {year_made:2010,predicted_for:2020,predictor:"Frey & Osborne",source:"Oxford Martin School (early drafts)",prediction:"47% of US jobs are at high risk of automation within 10-20 years.",outcome:"Task displacement accelerated; job losses more modest and uneven than predicted.",tags:["labor","AI","economy"],url:""},
+  {year_made:2011,predicted_for:2025,predictor:"Marc Andreessen",source:"Why Software Is Eating the World, WSJ",prediction:"Software companies will dominate every major industry. The largest companies of 2025 will mostly be software companies.",outcome:"Largely accurate — Apple, Microsoft, Google, Amazon, Meta dominate.",tags:["technology","economy","labor"],url:"https://a16z.com/why-software-is-eating-the-world/"},
+  {year_made:2011,predicted_for:2021,predictor:"Shoshana Zuboff",source:"A Digital Declaration",prediction:"Google and Facebook are pioneering a new form of capitalism that mines human experience for behavioral data to predict and modify behavior.",outcome:"Validated — her 2019 book Surveillance Capitalism became the definitive framing.",tags:["technology","privacy","economy"],url:""},
+  {year_made:2012,predicted_for:2022,predictor:"Erik Brynjolfsson & Andrew McAfee",source:"Race Against the Machine",prediction:"Digital technologies are advancing so fast that many workers will fall behind. The median worker will face stagnating wages despite rising productivity.",outcome:"Validated — productivity-wage gap widened; gig economy growth.",tags:["labor","technology","economy"],url:""},
+  {year_made:2012,predicted_for:2024,predictor:"Zeynep Tufekci",source:"Various papers",prediction:"Social media-enabled protest movements will be structurally weak — easy to start, hard to sustain, unable to develop negotiating capacity.",outcome:"Validated — Arab Spring, Occupy, early BLM all fit this pattern.",tags:["politics","technology","society"],url:""},
+  {year_made:2013,predicted_for:2020,predictor:"Elon Musk",source:"Various interviews",prediction:"Tesla will produce a fully self-driving car by 2016 and achieve full autonomy by 2018.",outcome:"Full autonomy not achieved; significant legal and technical challenges remain.",tags:["technology","AI"],url:""},
+  {year_made:2013,predicted_for:2023,predictor:"Tyler Cowen",source:"Average Is Over",prediction:"The economy will bifurcate between high earners who work well with machines and everyone else. The middle will hollow out.",outcome:"Validated — K-shaped recovery post-COVID; median wage polarization.",tags:["labor","economy","AI"],url:""},
+  {year_made:2014,predicted_for:2030,predictor:"Nick Bostrom",source:"Superintelligence",prediction:"The arrival of superintelligent AI represents an existential risk requiring urgent coordination — potentially within decades.",outcome:"AI safety became mainstream debate; no superintelligence yet but concern widespread.",tags:["AI","technology","governance"],url:""},
+  {year_made:2014,predicted_for:2030,predictor:"Thomas Piketty",source:"Capital in the 21st Century",prediction:"Without intervention, wealth inequality will grow as returns to capital exceed economic growth, recreating 19th-century levels of concentration.",outcome:"Validated — wealth concentration increased; billionaire class expanded.",tags:["economy","inequality"],url:""},
+  {year_made:2015,predicted_for:2025,predictor:"Klaus Schwab",source:"The Fourth Industrial Revolution, WEF",prediction:"The Fourth Industrial Revolution will blur lines between physical, digital, and biological spheres, requiring entirely new social contracts.",outcome:"Broadly accurate framing; AI disruption exceeds early expectations.",tags:["technology","labor","economy","society"],url:"https://www.weforum.org/agenda/2016/01/the-fourth-industrial-revolution-what-it-means-and-how-to-respond/"},
+  {year_made:2015,predicted_for:2025,predictor:"Andrew McAfee & Erik Brynjolfsson",source:"The Second Machine Age",prediction:"AI will create enormous wealth but require massive reinvention of education, social safety nets, and the meaning of work.",outcome:"Wealth creation accurate; reinvention of institutions lagging far behind.",tags:["AI","labor","education","economy"],url:""},
+  {year_made:2016,predicted_for:2026,predictor:"Various AI researchers",source:"Grace et al., AI Impacts survey",prediction:"50% probability of AI achieving human-level performance on any task within 45 years; some estimated 9 years.",outcome:"GPT-4/Claude exceeded many benchmarks far ahead of schedule.",tags:["AI","technology"],url:"https://aiimpacts.org/2016-expert-survey-on-progress-in-ai/"},
+  {year_made:2016,predicted_for:2026,predictor:"Yuval Noah Harari",source:"Homo Deus",prediction:"Dataism will emerge as the dominant worldview — humans will surrender autonomy to algorithms that understand them better than they understand themselves.",outcome:"Algorithmic influence growing; full surrender contested.",tags:["technology","society","AI"],url:""},
+  {year_made:2016,predicted_for:2026,predictor:"Martin Ford",source:"Rise of the Robots",prediction:"Unlike previous technological revolutions, AI and robotics will not create new job categories fast enough to replace those destroyed.",outcome:"Still contested; job market tight post-COVID but structural change accelerating.",tags:["AI","labor","economy"],url:""},
+  {year_made:2017,predicted_for:2030,predictor:"McKinsey Global Institute",source:"A Future That Works",prediction:"Up to 375 million workers (14% of global workforce) may need to switch occupational categories due to automation by 2030.",outcome:"COVID accelerated some shifts; AI capability growth exceeded 2017 assumptions.",tags:["labor","AI","economy"],url:"https://www.mckinsey.com/featured-insights/future-of-work/jobs-lost-jobs-gained-what-the-future-of-work-will-mean-for-jobs-skills-and-wages"},
+  {year_made:2017,predicted_for:2027,predictor:"Kai-Fu Lee",source:"Various interviews",prediction:"AI will replace 50% of jobs within 15 years. China and the US will dominate AI and the rest of the world will be largely left behind.",outcome:"China-US duopoly partially accurate; job replacement timeline debated.",tags:["AI","labor","economy","politics"],url:""},
+  {year_made:2018,predicted_for:2025,predictor:"Andrew Yang",source:"The War on Normal People",prediction:"Automation will hollow out the middle class and require Universal Basic Income by the mid-2020s to prevent social collapse.",outcome:"UBI pilots multiplied; no national UBI; middle-class stress intensified.",tags:["labor","economy","politics"],url:""},
+  {year_made:2018,predicted_for:2028,predictor:"Shoshana Zuboff",source:"The Age of Surveillance Capitalism",prediction:"A small number of tech corporations will accumulate unprecedented power by commodifying human behavioral data, exceeding state control.",outcome:"Validated — regulatory backlash in EU and US; data economy as described.",tags:["technology","privacy","economy","politics"],url:""},
+  {year_made:2019,predicted_for:2030,predictor:"IPCC SR1.5",source:"Special Report on Global Warming of 1.5°C",prediction:"We have roughly 11 years left to halve global emissions to keep warming below 1.5°C.",outcome:"Emissions have not halved; 1.5°C threshold crossed in 2023-24.",tags:["environment","climate","politics"],url:"https://www.ipcc.ch/sr15/"},
+  {year_made:2019,predicted_for:2025,predictor:"Daron Acemoglu & Simon Johnson",source:"Various papers",prediction:"AI as currently developed will primarily benefit corporations not workers and requires deliberate policy intervention to redirect toward broad welfare.",outcome:"Validated — corporate AI profits high; worker gains modest.",tags:["AI","labor","economy"],url:""},
+  {year_made:2020,predicted_for:2025,predictor:"Tristan Harris & Aza Raskin",source:"Center for Humane Technology",prediction:"AI will accelerate the attention economy's harms, creating a race to the bottom of the brainstem that democracies are unprepared to handle.",outcome:"AI-generated content and algorithmic amplification accelerated as predicted.",tags:["technology","AI","media","mental health","politics"],url:""},
+  {year_made:2020,predicted_for:2025,predictor:"Numerous commentators",source:"Various",prediction:"COVID will permanently transform remote work — offices will never recover to pre-pandemic levels.",outcome:"Partially accurate — hybrid work normalized but office return significant.",tags:["labor","society","technology"],url:""},
+  {year_made:2021,predicted_for:2031,predictor:"Yuval Noah Harari",source:"Various lectures",prediction:"AI and biotech will allow those with money to upgrade their bodies and minds, creating a new class divide between upgraded and non-upgraded humans.",outcome:"Too early to assess; longevity investment and cognitive enhancement research growing.",tags:["AI","society","biology","inequality"],url:""},
+  {year_made:2022,predicted_for:2030,predictor:"Eliezer Yudkowsky",source:"Various essays",prediction:"Unrestricted AI development will lead to human extinction with greater than 50% probability. Current safety efforts are inadequate.",outcome:"Mainstream AI safety concern grew; specific probability contested.",tags:["AI","technology","society"],url:""},
+  {year_made:2022,predicted_for:2027,predictor:"Geoffrey Hinton",source:"Various interviews (pre-resignation from Google)",prediction:"Large language models may have genuine understanding, not just pattern matching, and may pose existential risks sooner than expected.",outcome:"Hinton resigned from Google in 2023 to speak freely about AI risks.",tags:["AI","technology"],url:""},
+  {year_made:2023,predicted_for:2033,predictor:"Sam Altman",source:"Planning for AGI and beyond, OpenAI blog",prediction:"AGI may arrive within the next 10 years and will be the most transformative technology in human history. The transition must be managed carefully.",outcome:"Too early to assess.",tags:["AI","technology","economy"],url:"https://openai.com/blog/planning-for-agi-and-beyond"},
+  {year_made:2023,predicted_for:2030,predictor:"Daron Acemoglu",source:"Various interviews",prediction:"Current AI development trajectory will not produce the productivity miracle proponents claim. Most economic gains will go to the top 1%.",outcome:"Too early to assess; productivity gains so far modest at economy-wide level.",tags:["AI","economy","labor"],url:""},
+  {year_made:2023,predicted_for:2035,predictor:"Mustafa Suleyman",source:"The Coming Wave",prediction:"AI and synthetic biology represent a coming wave of technologies that nation-states will be unable to contain, requiring entirely new forms of governance.",outcome:"Too early to assess; AI governance efforts accelerating.",tags:["AI","technology","governance","politics"],url:""},
+  {year_made:2024,predicted_for:2030,predictor:"Various biosecurity researchers",source:"Johns Hopkins Center for Health Security",prediction:"Engineered pandemics represent the primary catastrophic risk of the next decade, exceeding natural pandemic risk.",outcome:"Too early to assess.",tags:["health","technology","governance"],url:""},
+];
 
 loadAll();
 </script>
