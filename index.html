@@ -1006,19 +1006,29 @@ async function fetchThoughtsFromSheet(){
       return;
     }
 
-    // Validate this is actually the Thoughts sheet by checking header row
+    // Validate this is the Thoughts sheet. Two valid cases:
+    // 1. Row 1 is a real header ("Timestamp","Text","Type"...)
+    // 2. Row 1 has no header and IS already real data (starts with an ISO timestamp)
     const header=(rows[0]||[]).map(c=>String(c).trim().toLowerCase());
-    const looksRight=header.some(h=>h.includes('timestamp')||h.includes('text')||h.includes('type'));
-    if(!looksRight){
+    const hasNamedHeader=header.some(h=>h.includes('timestamp')||h.includes('text')||h.includes('type'));
+    const firstCellLooksLikeTimestamp=/^\d{4}-\d{2}-\d{2}t\d{2}:\d{2}/.test(header[0]||'');
+
+    let dataRows;
+    if(hasNamedHeader){
+      dataRows=rows.slice(1); // skip real header row
+    } else if(firstCellLooksLikeTimestamp){
+      dataRows=rows; // no header — every row including row 1 is real data
+      console.log('Thoughts CSV: no header row detected — treating all rows as data');
+    } else {
       console.log('Thoughts CSV: unexpected header, skipping. Header was:',header);
       return;
     }
-    if(rows.length<2){
-      console.log('Thoughts CSV: header only, no data rows yet');
+    if(!dataRows.length){
+      console.log('Thoughts CSV: no data rows');
       return;
     }
 
-    sheetThoughts=rows.slice(1).map(r=>{
+    sheetThoughts=dataRows.map(r=>{
       const ts=(r[0]||'').trim();
       const text=(r[1]||'').trim();
       if(!ts||!text)return null;
