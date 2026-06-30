@@ -985,13 +985,21 @@ async function fetchCSV(name){
 
 let ROWS=[],SUMS=[],VC,TC;
 
+// Fetch with a hard timeout — used for background syncs that must never hang
+function fetchCSVWithTimeout(name,ms=8000){
+  return Promise.race([
+    fetchCSV(name),
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error('Timeout fetching '+name)),ms))
+  ]);
+}
+
 // ── Sync thoughts from Google Sheet → localStorage ────────────
 async function fetchThoughtsFromSheet(){
   let sheetThoughts=[];
 
   // Try public CSV first
   try{
-    const rows=await fetchCSV('Thoughts');
+    const rows=await fetchCSVWithTimeout('Thoughts',8000);
     console.log('Thoughts CSV raw rows:',rows?rows.length:0,rows);
     if(!rows||rows.length<1){
       console.log('Thoughts CSV: no rows returned');
@@ -1042,7 +1050,10 @@ async function fetchThoughtsFromSheet(){
       const cfg=getDashConfig();
       if(cfg.appsScriptUrl&&cfg.appsScriptToken){
         const url=`${cfg.appsScriptUrl}?action=getThoughts&token=${encodeURIComponent(cfg.appsScriptToken)}`;
-        const res=await fetch(url);
+        const res=await Promise.race([
+          fetch(url),
+          new Promise((_,reject)=>setTimeout(()=>reject(new Error('Apps Script timeout')),10000))
+        ]);
         if(res.ok){
           const data=await res.json();
           if(data.success&&data.thoughts){
@@ -1110,9 +1121,11 @@ async function loadAll(){
     const ar=await fetchCSV('Archive');
     lmsg.textContent='Fetching Summary… (Archive: '+ar.length+' rows)';
     const sr=await fetchCSV('Summary');
-    lmsg.textContent='Syncing thoughts…';
-    await fetchThoughtsFromSheet();
     lmsg.textContent='Processing '+lr.length+' LiveFeed + '+ar.length+' Archive rows…';
+
+    // Thoughts sync runs in the background — never blocks the main dashboard load.
+    // It has its own internal timeout so it can never hang.
+    fetchThoughtsFromSheet().catch(e=>console.log('Background thoughts sync failed:',e.message));
 
     ROWS=[];
     for(const r of[...lr.slice(2),...ar.slice(1)]){
