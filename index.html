@@ -992,13 +992,21 @@ async function fetchThoughtsFromSheet(){
   // Try public CSV first
   try{
     const rows=await fetchCSV('Thoughts');
-    if(!rows||rows.length<2){return;} // empty sheet
+    console.log('Thoughts CSV raw rows:',rows?rows.length:0,rows);
+    if(!rows||rows.length<1){
+      console.log('Thoughts CSV: no rows returned');
+      return;
+    }
 
     // Validate this is actually the Thoughts sheet by checking header row
     const header=(rows[0]||[]).map(c=>String(c).trim().toLowerCase());
     const looksRight=header.some(h=>h.includes('timestamp')||h.includes('text')||h.includes('type'));
     if(!looksRight){
-      console.log('Thoughts CSV: unexpected structure, skipping');
+      console.log('Thoughts CSV: unexpected header, skipping. Header was:',header);
+      return;
+    }
+    if(rows.length<2){
+      console.log('Thoughts CSV: header only, no data rows yet');
       return;
     }
 
@@ -1024,6 +1032,8 @@ async function fetchThoughtsFromSheet(){
         fromSheet:true
       };
     }).filter(Boolean);
+
+    console.log('Thoughts parsed from CSV:',sheetThoughts.length,sheetThoughts);
 
   }catch(csvErr){
     // CSV failed — try Apps Script endpoint as fallback
@@ -1058,7 +1068,10 @@ async function fetchThoughtsFromSheet(){
     }
   }
 
-  if(!sheetThoughts.length)return;
+  if(!sheetThoughts.length){
+    console.log('Thoughts: nothing to merge — sheetThoughts array is empty');
+    return;
+  }
 
   // Merge with existing localStorage thoughts
   const existing=JSON.parse(localStorage.getItem(TH_KEY)||'[]');
