@@ -306,31 +306,32 @@ function parseCSV(text){
 }
 
 async function loadData(){
-  const sheetNames = ['Archive', 'archive', 'Sheet1'];
-  let rows = [];
+  const sheetNames=['Archive','archive','Sheet1'];
+  let rows=[];
+  let loaded=false;
 
-  for (const sheetName of sheetNames) {
-    try {
-      const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
-      const res = await Promise.race([
+  for(let si=0;si<sheetNames.length;si++){
+    const sheetName=sheetNames[si];
+    try{
+      const url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&sheet='+encodeURIComponent(sheetName);
+      const res=await Promise.race([
         fetch(url),
-        new Promise((_,reject)=>setTimeout(()=>reject(new Error('Timeout')),10000))
+        new Promise(function(_,reject){setTimeout(function(){reject(new Error('Timeout'));},10000);})
       ]);
-      if (!res.ok) continue;
-      const text = await res.text();
-      // Check it's not an error page
-      if (text.includes('google-visualization-errors') || text.trim().length < 20) continue;
-      rows = parseCSV(text).slice(1);
-      if (rows.length > 0) {
-        console.log('Loaded', rows.length, 'rows from sheet:', sheetName);
+      if(!res.ok)continue;
+      const text=await res.text();
+      if(text.indexOf('google-visualization-errors')>-1||text.trim().length<20)continue;
+      rows=parseCSV(text).slice(1);
+      if(rows.length>0){
+        console.log('Loaded',rows.length,'rows from sheet:',sheetName);
+        loaded=true;
         break;
       }
-    } catch(e) {
-      console.log('Failed sheet', sheetName, ':', e.message);
-      continue;
+    }catch(err){
+      console.log('Failed sheet',sheetName,':',err.message);
     }
   }
-  if (!rows.length) return false;
+  if(!loaded||!rows.length)return false;
 
   ALL_ROWS=rows.map(r=>{
     const rawUrl=(r[0]||'').trim();
@@ -390,6 +391,238 @@ function fillCard(row){
 
   // Text
   document.getElementById('card-text').textContent=row.text.length>600?row.text.slice(0,600)+'…':row.text;
+
+  // Date
+  const ds=row.date?row.date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'';
+  document.getElementById('card-date').textContent=ds;
+
+  // Theme badge
+  const tb=document.getElementById('card-theme');
+  if(row.theme){tb.textContent=row.theme.split(' ').slice(0,2).join(' ');tb.style.display='';}
+  else tb.style.display='none';
+
+  // Source
+  const src=document.getElementById('card-source');
+  if(row.domain){src.textContent='↗ '+row.domain;src.href=row.articleUrl;src.style.display='';}
+  else src.style.display='none';
+}
+
+function makePlaceholder(row){
+  const cls=row.steepClass||'steep-default';
+  const icon=STEEP_ICON[cls]||'🔭';
+  return`<div class="card-img-placeholder ${cls}"><span class="card-img-icon">${icon}</span></div>`;
+}
+
+function animateTo(row,direction){
+  if(IS_ANIMATING)return;
+  IS_ANIMATING=true;
+  const card=document.getElementById('card');
+  card.classList.add(direction==='fwd'?'out-left':'out-right');
+  setTimeout(()=>{
+    card.classList.remove('out-left','out-right');
+    card.classList.add(direction==='fwd'?'in-from-right':'in-from-left');
+    fillCard(row);
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        card.classList.remove('in-from-right','in-from-left');
+        card.classList.add('settled');
+        setTimeout(()=>{card.classList.remove('settled');IS_ANIMATING=false;},300);
+      });
+    });
+  },240);
+}
+
+function updateHUD(){
+  const modeEl=document.getElementById('mode-label');
+  const countEl=document.getElementById('card-count');
+  const dotsEl=document.getElementById('dots');
+  const homeBtn=document.getElementById('home-btn');
+  const sortToggle=document.getElementById('sort-toggle');
+  const archiveBtn=document.getElementById('btn-archive');
+
+  document.getElementById('end-overlay').classList.remove('show');
+
+  if(MODE==='curated'){
+    modeEl.textContent="Today's signals";
+    countEl.textContent=`${IDX+1} of ${DECK.length}`;
+    homeBtn.style.display='none';
+    sortToggle.style.display='none';
+    archiveBtn.textContent='See archive ↓';
+    renderDots();
+  }else if(MODE==='archive'){
+    modeEl.textContent=ARCHIVE_REVERSED?'Archive — oldest first':'Archive — newest first';
+    countEl.textContent=`${IDX+1} of ${DECK.length}`;
+    homeBtn.style.display='';
+    sortToggle.style.display='';
+    sortToggle.textContent=ARCHIVE_REVERSED?'↕ Newest first':'↕ Oldest first';
+    archiveBtn.textContent='↑ Exit archive';
+    dotsEl.innerHTML='';
+  }else{
+    modeEl.textContent=`Deeper: ${DEEPER_THEME}`;
+    countEl.textContent=`${IDX+1} of ${DECK.length}`;
+    homeBtn.style.display='';
+    sortToggle.style.display='none';
+    archiveBtn.textContent='See archive ↓';
+    dotsEl.innerHTML='';
+  }
+
+  document.getElementById('btn-back').classList.toggle('disabled',IDX===0);
+}
+
+function renderDots(){
+  const el=document.getElementById('dots');
+  const card=document.getElementById('card');
+  const cls=card.className.match(/steep-\w+/)?.[0]||'steep-default';
+  el.style.setProperty('--accent',getComputedStyle(document.querySelector('.'+cls)||document.body).getPropertyValue('--accent')||'var(--violet)');
+  el.innerHTML=DECK.map((_,i)=>{
+    const c=i===IDX?'active':i<IDX?'visited':'';
+    return`<div class="dot ${c}"></div>`;
+  }).join('');
+}
+
+// Navigation
+function goForward(){
+  if(IS_ANIMATING)return;
+  if(IDX>=DECK.length-1){showEnd();return;}
+  IDX++;animateTo(DECK[IDX],'fwd');updateHUD();
+}
+function goBack(){
+  if(IS_ANIMATING||IDX<=0)return;
+  IDX--;animateTo(DECK[IDX],'back');updateHUD();
+}
+function goHome(){
+  MODE='curated';DECK=getCuratedDeck();IDX=0;PREV_STATE=null;
+  document.getElementById('jump-bar').classList.remove('show');
+  fillCard(DECK[0]);updateHUD();
+}
+function handleArchiveClick(){
+  if(MODE==='archive')goHome();else goArchive();
+}
+function goArchive(jumpToDate){
+  PREV_STATE={mode:MODE,deck:DECK,idx:IDX};
+  MODE='archive';ARCHIVE_REVERSED=false;
+  DECK=[...ALL_ROWS];
+  if(jumpToDate){
+    const target=jumpToDate.getTime();
+    let best=0,bestDiff=Infinity;
+    DECK.forEach((r,i)=>{const diff=Math.abs(r.date.getTime()-target);if(diff<bestDiff){bestDiff=diff;best=i;}});
+    IDX=best;
+    const jb=document.getElementById('jump-bar');
+    jb.textContent=`Jumped to ${jumpToDate.toLocaleDateString('en-US',{month:'long',year:'numeric'})}`;
+    jb.classList.add('show');
+    setTimeout(()=>jb.classList.remove('show'),2500);
+  }else{IDX=0;}
+  fillCard(DECK[IDX]);updateHUD();
+}
+function toggleSort(){
+  ARCHIVE_REVERSED=!ARCHIVE_REVERSED;
+  DECK=ARCHIVE_REVERSED?[...ALL_ROWS].reverse():[...ALL_ROWS];
+  IDX=0;fillCard(DECK[0]);updateHUD();
+}
+function handleDeeperClick(){
+  const current=DECK[IDX];if(!current)return;
+  const savedDate=current.date;
+  const fromArchive=(MODE==='archive');
+  PREV_STATE={mode:MODE,deck:DECK,idx:IDX,savedDate};
+  const themeClass=current.steepClass||'steep-default';
+  // Match by STEEP class (broadest useful grouping)
+  DEEPER_THEME=current.theme?current.theme.split(' ').slice(0,3).join(' '):(themeClass.replace('steep-',''));
+  MODE='deeper';
+  const themeKey=current.theme?current.theme.toLowerCase().split(' ')[0]:null;
+  DECK=ALL_ROWS.filter(r=>r!==current&&(themeKey?r.theme&&r.theme.toLowerCase().includes(themeKey):r.steepClass===themeClass));
+  if(!DECK.length)DECK=ALL_ROWS.filter(r=>r.steepClass===themeClass&&r!==current).slice(0,30);
+  if(!DECK.length){
+    const btn=document.getElementById('btn-deeper');
+    const orig=btn.textContent;btn.textContent='No related found';
+    setTimeout(()=>btn.textContent=orig,1500);
+    MODE=PREV_STATE.mode;DECK=PREV_STATE.deck;IDX=PREV_STATE.idx;return;
+  }
+  IDX=0;
+
+  // If from archive, show jump option briefly
+  if(fromArchive){
+    const homeBtn=document.getElementById('home-btn');
+    const jumpBtn=document.createElement('button');
+    jumpBtn.className='home-btn';
+    jumpBtn.textContent=`📅 ${savedDate.toLocaleDateString('en-US',{month:'short',year:'numeric'})}`;
+    jumpBtn.title='Jump to this date in archive';
+    jumpBtn.onclick=()=>{jumpBtn.remove();goArchive(savedDate);};
+    homeBtn.parentElement.insertBefore(jumpBtn,homeBtn);
+    setTimeout(()=>{if(jumpBtn.parentElement)jumpBtn.remove();},7000);
+  }
+
+  fillCard(DECK[0]);updateHUD();
+}
+
+function showEnd(){
+  const overlay=document.getElementById('end-overlay');
+  const title=document.getElementById('end-title');
+  const sub=document.getElementById('end-sub');
+  const b1=document.getElementById('end-btn1');
+  const b2=document.getElementById('end-btn2');
+  if(MODE==='deeper'){
+    title.textContent=`End of "${DEEPER_THEME}"`;
+    sub.textContent=`${DECK.length} signals in this theme`;
+    b1.textContent='⌂ Back to today';
+    b2.textContent='↺ Start over in theme';
+  }else if(MODE==='curated'){
+    title.textContent="That's today's 5";
+    sub.textContent='New signals tomorrow at 3am';
+    b1.textContent='↺ See them again';
+    b2.textContent='↓ See archive';
+  }else{
+    title.textContent='End of archive';sub.textContent='';
+    b1.textContent='⌂ Back to today';b2.textContent='↺ Start over';
+  }
+  overlay.classList.add('show');
+}
+
+function endAction1(){
+  document.getElementById('end-overlay').classList.remove('show');
+  if(MODE==='deeper')goHome();
+  else if(MODE==='curated'){IDX=0;fillCard(DECK[0]);updateHUD();}
+  else goHome();
+}
+function endAction2(){
+  document.getElementById('end-overlay').classList.remove('show');
+  if(MODE==='deeper'){IDX=0;fillCard(DECK[0]);updateHUD();}
+  else if(MODE==='curated')goArchive();
+  else{IDX=0;fillCard(DECK[0]);updateHUD();}
+}
+
+// Touch swipe
+document.addEventListener('touchstart',e=>{TX=e.touches[0].clientX;TY=e.touches[0].clientY;},{passive:true});
+document.addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-TX;
+  const dy=e.changedTouches[0].clientY-TY;
+  if(Math.abs(dx)<40||Math.abs(dy)>Math.abs(dx)*0.8)return;
+  if(dx<0)goForward();else goBack();
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight')goForward();
+  if(e.key==='ArrowLeft')goBack();
+});
+
+async function init(){
+  try{
+    const ok=await loadData();
+    if(!ok)throw new Error('No signals');
+    DECK=getCuratedDeck();IDX=0;MODE='curated';
+    fillCard(DECK[0]);updateHUD();
+    document.getElementById('loading').style.display='none';
+    document.getElementById('app').style.display='flex';
+  }catch(e){
+    document.getElementById('loading').innerHTML=`<div style="font-family:monospace;font-size:12px;color:#e84393;text-align:center;padding:20px;">
+      Could not load signals.<br><br>
+      <span style="color:#6b6097;font-size:10px;">${e.message}</span><br><br>
+      <span style="color:#6b6097;font-size:10px;">Make sure your Google Sheet is shared publicly<br>(File → Share → Anyone with link can view)</span>
+    </div>`;
+  }
+}
+init();
+</script>
+</body>
+</html>
 
   // Date
   const ds=row.date?row.date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'';
