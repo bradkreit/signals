@@ -375,6 +375,609 @@ function getCuratedDeck(){
   return picked;
 }
 
+function fillCard(row){
+  const card=document.getElementById('card');
+  card.className='card '+(row.steepClass||'steep-default');
+
+  // Image
+  const imgArea=document.getElementById('card-img-area');
+  if(row.ogImage){
+    const img=document.createElement('img');
+    img.className='card-img';
+    img.alt='';
+    img.onerror=function(){imgArea.innerHTML=makePlaceholder(row);};
+    img.src=row.ogImage;
+    imgArea.innerHTML='';
+    imgArea.appendChild(img);
+  }else{
+    imgArea.innerHTML=makePlaceholder(row);
+  }
+
+  // Text
+  const txt=row.text&&row.text.length>600?row.text.slice(0,600)+'…':(row.text||'');
+  document.getElementById('card-text').textContent=txt;
+
+  // Date
+  try{
+    const ds=row.date?row.date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'';
+    document.getElementById('card-date').textContent=ds;
+  }catch(e2){document.getElementById('card-date').textContent='';}
+
+  // Theme badge
+  const tb=document.getElementById('card-theme');
+  if(row.theme){tb.textContent=row.theme.split(' ').slice(0,2).join(' ');tb.style.display='';}
+  else tb.style.display='none';
+
+  // Source
+  const src=document.getElementById('card-source');
+  if(row.domain){src.textContent='↗ '+row.domain;src.href=row.articleUrl||'#';src.style.display='';}
+  else src.style.display='none';
+}
+
+function makePlaceholder(row){
+  const cls=row.steepClass||'steep-default';
+  const icon=STEEP_ICON[cls]||'🔭';
+  return`<div class="card-img-placeholder ${cls}"><span class="card-img-icon">${icon}</span></div>`;
+}
+
+function animateTo(row,direction){
+  if(IS_ANIMATING)return;
+  IS_ANIMATING=true;
+  const card=document.getElementById('card');
+  card.classList.add(direction==='fwd'?'out-left':'out-right');
+  setTimeout(()=>{
+    card.classList.remove('out-left','out-right');
+    card.classList.add(direction==='fwd'?'in-from-right':'in-from-left');
+    fillCard(row);
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        card.classList.remove('in-from-right','in-from-left');
+        card.classList.add('settled');
+        setTimeout(()=>{card.classList.remove('settled');IS_ANIMATING=false;},300);
+      });
+    });
+  },240);
+}
+
+function updateHUD(){
+  const modeEl=document.getElementById('mode-label');
+  const countEl=document.getElementById('card-count');
+  const dotsEl=document.getElementById('dots');
+  const homeBtn=document.getElementById('home-btn');
+  const sortToggle=document.getElementById('sort-toggle');
+  const archiveBtn=document.getElementById('btn-archive');
+
+  document.getElementById('end-overlay').classList.remove('show');
+
+  if(MODE==='curated'){
+    modeEl.textContent="Today's signals";
+    countEl.textContent=`${IDX+1} of ${DECK.length}`;
+    homeBtn.style.display='none';
+    sortToggle.style.display='none';
+    archiveBtn.textContent='See archive ↓';
+    renderDots();
+  }else if(MODE==='archive'){
+    modeEl.textContent=ARCHIVE_REVERSED?'Archive — oldest first':'Archive — newest first';
+    countEl.textContent=`${IDX+1} of ${DECK.length}`;
+    homeBtn.style.display='';
+    sortToggle.style.display='';
+    sortToggle.textContent=ARCHIVE_REVERSED?'↕ Newest first':'↕ Oldest first';
+    archiveBtn.textContent='↑ Exit archive';
+    dotsEl.innerHTML='';
+  }else{
+    modeEl.textContent=`Deeper: ${DEEPER_THEME}`;
+    countEl.textContent=`${IDX+1} of ${DECK.length}`;
+    homeBtn.style.display='';
+    sortToggle.style.display='none';
+    archiveBtn.textContent='See archive ↓';
+    dotsEl.innerHTML='';
+  }
+
+  document.getElementById('btn-back').classList.toggle('disabled',IDX===0);
+}
+
+function renderDots(){
+  const el=document.getElementById('dots');
+  const card=document.getElementById('card');
+  const cls=card.className.match(/steep-\w+/)?.[0]||'steep-default';
+  el.style.setProperty('--accent',getComputedStyle(document.querySelector('.'+cls)||document.body).getPropertyValue('--accent')||'var(--violet)');
+  el.innerHTML=DECK.map((_,i)=>{
+    const c=i===IDX?'active':i<IDX?'visited':'';
+    return`<div class="dot ${c}"></div>`;
+  }).join('');
+}
+
+// Navigation
+function goForward(){
+  if(IS_ANIMATING)return;
+  if(IDX>=DECK.length-1){showEnd();return;}
+  IDX++;animateTo(DECK[IDX],'fwd');updateHUD();
+}
+function goBack(){
+  if(IS_ANIMATING||IDX<=0)return;
+  IDX--;animateTo(DECK[IDX],'back');updateHUD();
+}
+function goHome(){
+  MODE='curated';DECK=getCuratedDeck();IDX=0;PREV_STATE=null;
+  document.getElementById('jump-bar').classList.remove('show');
+  fillCard(DECK[0]);updateHUD();
+}
+function handleArchiveClick(){
+  if(MODE==='archive')goHome();else goArchive();
+}
+function goArchive(jumpToDate){
+  PREV_STATE={mode:MODE,deck:DECK,idx:IDX};
+  MODE='archive';ARCHIVE_REVERSED=false;
+  DECK=[...ALL_ROWS];
+  if(jumpToDate){
+    const target=jumpToDate.getTime();
+    let best=0,bestDiff=Infinity;
+    DECK.forEach((r,i)=>{const diff=Math.abs(r.date.getTime()-target);if(diff<bestDiff){bestDiff=diff;best=i;}});
+    IDX=best;
+    const jb=document.getElementById('jump-bar');
+    jb.textContent=`Jumped to ${jumpToDate.toLocaleDateString('en-US',{month:'long',year:'numeric'})}`;
+    jb.classList.add('show');
+    setTimeout(()=>jb.classList.remove('show'),2500);
+  }else{IDX=0;}
+  fillCard(DECK[IDX]);updateHUD();
+}
+function toggleSort(){
+  ARCHIVE_REVERSED=!ARCHIVE_REVERSED;
+  DECK=ARCHIVE_REVERSED?[...ALL_ROWS].reverse():[...ALL_ROWS];
+  IDX=0;fillCard(DECK[0]);updateHUD();
+}
+function handleDeeperClick(){
+  const current=DECK[IDX];if(!current)return;
+  const savedDate=current.date;
+  const fromArchive=(MODE==='archive');
+  PREV_STATE={mode:MODE,deck:DECK,idx:IDX,savedDate};
+  const themeClass=current.steepClass||'steep-default';
+  // Match by STEEP class (broadest useful grouping)
+  DEEPER_THEME=current.theme?current.theme.split(' ').slice(0,3).join(' '):(themeClass.replace('steep-',''));
+  MODE='deeper';
+  const themeKey=current.theme?current.theme.toLowerCase().split(' ')[0]:null;
+  DECK=ALL_ROWS.filter(r=>r!==current&&(themeKey?r.theme&&r.theme.toLowerCase().includes(themeKey):r.steepClass===themeClass));
+  if(!DECK.length)DECK=ALL_ROWS.filter(r=>r.steepClass===themeClass&&r!==current).slice(0,30);
+  if(!DECK.length){
+    const btn=document.getElementById('btn-deeper');
+    const orig=btn.textContent;btn.textContent='No related found';
+    setTimeout(()=>btn.textContent=orig,1500);
+    MODE=PREV_STATE.mode;DECK=PREV_STATE.deck;IDX=PREV_STATE.idx;return;
+  }
+  IDX=0;
+
+  // If from archive, show jump option briefly
+  if(fromArchive){
+    const homeBtn=document.getElementById('home-btn');
+    const jumpBtn=document.createElement('button');
+    jumpBtn.className='home-btn';
+    jumpBtn.textContent=`📅 ${savedDate.toLocaleDateString('en-US',{month:'short',year:'numeric'})}`;
+    jumpBtn.title='Jump to this date in archive';
+    jumpBtn.onclick=()=>{jumpBtn.remove();goArchive(savedDate);};
+    homeBtn.parentElement.insertBefore(jumpBtn,homeBtn);
+    setTimeout(()=>{if(jumpBtn.parentElement)jumpBtn.remove();},7000);
+  }
+
+  fillCard(DECK[0]);updateHUD();
+}
+
+function showEnd(){
+  const overlay=document.getElementById('end-overlay');
+  const title=document.getElementById('end-title');
+  const sub=document.getElementById('end-sub');
+  const b1=document.getElementById('end-btn1');
+  const b2=document.getElementById('end-btn2');
+  if(MODE==='deeper'){
+    title.textContent=`End of "${DEEPER_THEME}"`;
+    sub.textContent=`${DECK.length} signals in this theme`;
+    b1.textContent='⌂ Back to today';
+    b2.textContent='↺ Start over in theme';
+  }else if(MODE==='curated'){
+    title.textContent="That's today's 5";
+    sub.textContent='New signals tomorrow at 3am';
+    b1.textContent='↺ See them again';
+    b2.textContent='↓ See archive';
+  }else{
+    title.textContent='End of archive';sub.textContent='';
+    b1.textContent='⌂ Back to today';b2.textContent='↺ Start over';
+  }
+  overlay.classList.add('show');
+}
+
+function endAction1(){
+  document.getElementById('end-overlay').classList.remove('show');
+  if(MODE==='deeper')goHome();
+  else if(MODE==='curated'){IDX=0;fillCard(DECK[0]);updateHUD();}
+  else goHome();
+}
+function endAction2(){
+  document.getElementById('end-overlay').classList.remove('show');
+  if(MODE==='deeper'){IDX=0;fillCard(DECK[0]);updateHUD();}
+  else if(MODE==='curated')goArchive();
+  else{IDX=0;fillCard(DECK[0]);updateHUD();}
+}
+
+// Touch swipe
+document.addEventListener('touchstart',e=>{TX=e.touches[0].clientX;TY=e.touches[0].clientY;},{passive:true});
+document.addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-TX;
+  const dy=e.changedTouches[0].clientY-TY;
+  if(Math.abs(dx)<40||Math.abs(dy)>Math.abs(dx)*0.8)return;
+  if(dx<0)goForward();else goBack();
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight')goForward();
+  if(e.key==='ArrowLeft')goBack();
+});
+
+async function init(){
+  const loadingEl=document.getElementById('loading');
+  const appEl=document.getElementById('app');
+  try{
+    loadingEl.querySelector('.loading-text').textContent='Fetching signals…';
+    const ok=await loadData();
+    if(!ok)throw new Error('No signals loaded — check sheet sharing');
+    loadingEl.querySelector('.loading-text').textContent='Building cards…';
+    DECK=getCuratedDeck();
+    IDX=0;
+    MODE='curated';
+    loadingEl.querySelector('.loading-text').textContent='Rendering…';
+    fillCard(DECK[0]);
+    updateHUD();
+    loadingEl.style.display='none';
+    appEl.style.display='flex';
+  }catch(err){
+    loadingEl.innerHTML='<div style="font-family:monospace;font-size:12px;color:#e84393;text-align:center;padding:24px;line-height:1.8;">'
+      +'Error: '+err.message+'<br><br>'
+      +'<span style="color:#6b6097;font-size:10px;">Open browser console for details</span>'
+      +'</div>';
+  }
+}
+init();
+</script>
+</body>
+</html>
+.steep-technological{ --accent:#4f46e5; --accent-dim:#1a1840; }
+.steep-economic    { --accent:#0db4b9; --accent-dim:#0a2e30; }
+.steep-environmental{ --accent:#22c55e; --accent-dim:#0d2818; }
+.steep-political   { --accent:#f97316; --accent-dim:#2e1a0a; }
+.steep-legal       { --accent:#f0b429; --accent-dim:#2e2208; }
+.steep-default     { --accent:#7c5cbf; --accent-dim:#1e1535; }
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--sans);overflow:hidden;user-select:none;}
+
+/* Subtle star/grain bg */
+body::before{
+  content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse at 20% 10%,rgba(124,92,191,.18) 0%,transparent 60%),
+             radial-gradient(ellipse at 80% 80%,rgba(79,70,229,.14) 0%,transparent 60%);
+  pointer-events:none;z-index:0;
+}
+
+.app{
+  display:flex;flex-direction:column;height:100%;position:relative;z-index:1;
+  padding-top:calc(var(--safe-top)+10px);
+  padding-bottom:calc(var(--safe-bottom)+10px);
+}
+
+/* Header */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:0 16px 8px;flex-shrink:0;}
+.hdr-left{display:flex;align-items:center;gap:8px;}
+.hdr-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;background:linear-gradient(135deg,var(--violet),var(--indigo));}
+.hdr-mode{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt2);}
+.hdr-count{font-family:var(--mono);font-size:9px;color:var(--txt3);}
+.home-btn{font-family:var(--mono);font-size:9px;padding:4px 10px;border:1px solid var(--bor2);border-radius:10px;background:rgba(255,255,255,.05);color:var(--txt2);cursor:pointer;white-space:nowrap;transition:all .12s;}
+.home-btn:active{background:var(--sur2);}
+
+/* Progress dots */
+.dots{display:flex;justify-content:center;gap:6px;padding:0 16px 8px;flex-shrink:0;}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--bor2);transition:all .2s;}
+.dot.active{background:var(--accent,var(--violet));transform:scale(1.2);}
+.dot.visited{background:var(--bor);}
+
+/* Card */
+.card-wrap{flex:1;padding:0 14px;position:relative;overflow:hidden;display:flex;}
+.card{
+  width:100%;border-radius:18px;display:flex;flex-direction:column;overflow:hidden;
+  position:absolute;left:14px;right:14px;top:0;bottom:0;
+  border:1px solid var(--bor2);
+  background:linear-gradient(160deg,var(--accent-dim,#1a1535) 0%,var(--sur) 60%);
+  box-shadow:0 8px 32px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.04);
+  transition:transform .28s cubic-bezier(.4,0,.2,1),opacity .28s;
+  will-change:transform;
+}
+.card.out-left{transform:translateX(-112%);opacity:0;}
+.card.out-right{transform:translateX(112%);opacity:0;}
+.card.in-from-right{transform:translateX(112%);opacity:0;}
+.card.in-from-left{transform:translateX(-112%);opacity:0;}
+.card.settled{transform:translateX(0);opacity:1;}
+
+/* Card image */
+.card-img{width:100%;height:190px;object-fit:cover;flex-shrink:0;display:block;}
+.card-img-placeholder{
+  width:100%;height:190px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--accent-dim,#1e1535),var(--sur2));
+  position:relative;overflow:hidden;
+}
+.card-img-placeholder::after{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 50% 30%,rgba(255,255,255,.04) 0%,transparent 70%);
+}
+.card-img-domain{
+  font-family:var(--serif);font-size:32px;font-weight:700;
+  color:rgba(255,255,255,.08);letter-spacing:.02em;
+  z-index:1;
+}
+.card-img-icon{font-size:48px;opacity:.35;z-index:1;}
+
+/* Card body */
+.card-body{flex:1;padding:14px 16px 10px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.card-text{font-size:15px;line-height:1.68;color:var(--txt);font-weight:300;}
+
+/* Card footer */
+.card-footer{
+  padding:8px 16px 10px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:space-between;
+  border-top:1px solid rgba(255,255,255,.06);
+}
+.card-meta{display:flex;align-items:center;gap:8px;}
+.card-date{font-family:var(--mono);font-size:9px;color:var(--txt3);}
+.card-source{
+  font-family:var(--mono);font-size:9px;color:var(--accent,var(--violet));
+  text-decoration:none;border:1px solid rgba(255,255,255,.1);
+  padding:2px 8px;border-radius:8px;background:rgba(255,255,255,.04);
+  white-space:nowrap;transition:all .12s;
+}
+.card-source:active{background:rgba(255,255,255,.08);}
+.theme-badge{
+  font-family:var(--mono);font-size:8px;padding:2px 7px;border-radius:8px;
+  background:rgba(255,255,255,.07);color:var(--txt2);border:1px solid rgba(255,255,255,.08);
+}
+
+/* Accent bar at top of card */
+.accent-bar{height:3px;background:var(--accent,var(--violet));flex-shrink:0;border-radius:18px 18px 0 0;}
+
+/* Nav */
+.nav{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px 14px 0;flex-shrink:0;}
+.nav-btn{
+  font-family:var(--mono);font-size:11px;letter-spacing:.03em;
+  padding:11px 8px;border-radius:12px;text-align:center;cursor:pointer;
+  transition:all .14s;border:1px solid var(--bor2);
+  background:rgba(255,255,255,.04);color:var(--txt2);line-height:1.2;
+}
+.nav-btn:active{transform:scale(.97);background:rgba(255,255,255,.08);}
+.nav-btn.primary{
+  background:linear-gradient(135deg,var(--accent,var(--violet)),rgba(255,255,255,.1));
+  color:#fff;border-color:transparent;
+  box-shadow:0 2px 12px rgba(0,0,0,.3);
+}
+.nav-btn.dim{color:var(--txt3);}
+.nav-btn.disabled{opacity:.25;pointer-events:none;}
+.nav-btn-full{grid-column:1/-1;}
+
+/* Sort toggle */
+.sort-toggle{font-family:var(--mono);font-size:9px;padding:4px 10px;border:1px solid var(--bor2);border-radius:10px;background:rgba(255,255,255,.04);color:var(--txt2);cursor:pointer;}
+
+/* End overlay */
+.end-overlay{
+  position:absolute;inset:0;
+  background:rgba(14,11,30,.92);backdrop-filter:blur(6px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;border-radius:18px;opacity:0;pointer-events:none;transition:opacity .2s;
+  border:1px solid var(--bor2);
+}
+.end-overlay.show{opacity:1;pointer-events:all;}
+.end-title{font-family:var(--serif);font-size:17px;color:var(--txt);margin-bottom:2px;}
+.end-sub{font-family:var(--mono);font-size:9px;color:var(--txt3);}
+.end-btn{
+  font-family:var(--mono);font-size:11px;padding:11px 24px;border-radius:12px;
+  border:1px solid var(--bor2);background:rgba(255,255,255,.06);color:var(--txt);
+  cursor:pointer;min-width:200px;text-align:center;transition:all .12s;
+}
+.end-btn:active{background:rgba(255,255,255,.1);}
+.end-btn.gold{background:linear-gradient(135deg,var(--gold),var(--orange));color:#0e0b1e;border-color:transparent;}
+
+/* Loading */
+.loading{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:100;}
+.loading-text{font-family:var(--mono);font-size:11px;color:var(--txt3);}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:28px;height:28px;border:2px solid var(--bor2);border-top-color:var(--violet);border-radius:50%;animation:spin .7s linear infinite;}
+
+/* Jump bar */
+.jump-bar{background:rgba(79,70,229,.2);border-bottom:1px solid rgba(79,70,229,.3);padding:5px 16px;font-family:var(--mono);font-size:9px;color:var(--indigo);text-align:center;flex-shrink:0;display:none;}
+.jump-bar.show{display:block;}
+</style>
+</head>
+<body>
+
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text">Loading signals…</div>
+</div>
+
+<div class="app" id="app" style="display:none;">
+  <div class="hdr">
+    <div class="hdr-left">
+      <div class="hdr-icon">⚡</div>
+      <div>
+        <div class="hdr-mode" id="mode-label">Today's signals</div>
+        <div class="hdr-count" id="card-count"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <button class="sort-toggle" id="sort-toggle" style="display:none;" onclick="toggleSort()">↕ Oldest first</button>
+      <button class="home-btn" id="home-btn" style="display:none;" onclick="goHome()">⌂ Today</button>
+    </div>
+  </div>
+
+  <div class="dots" id="dots"></div>
+  <div class="jump-bar" id="jump-bar"></div>
+
+  <div class="card-wrap" id="card-wrap">
+    <div class="card steep-default" id="card">
+      <div class="accent-bar"></div>
+      <div id="card-img-area"></div>
+      <div class="card-body">
+        <div class="card-text" id="card-text"></div>
+      </div>
+      <div class="card-footer">
+        <div class="card-meta">
+          <span class="card-date" id="card-date"></span>
+          <span class="theme-badge" id="card-theme" style="display:none;"></span>
+        </div>
+        <a class="card-source" id="card-source" href="#" target="_blank" rel="noopener" style="display:none;">↗ source</a>
+      </div>
+    </div>
+    <div class="end-overlay" id="end-overlay">
+      <div class="end-title" id="end-title"></div>
+      <div class="end-sub" id="end-sub"></div>
+      <button class="end-btn gold" id="end-btn1" onclick="endAction1()"></button>
+      <button class="end-btn" id="end-btn2" onclick="endAction2()"></button>
+    </div>
+  </div>
+
+  <div class="nav" id="nav">
+    <button class="nav-btn dim disabled" id="btn-back" onclick="goBack()">← Back</button>
+    <button class="nav-btn primary" id="btn-fwd" onclick="goForward()">Forward →</button>
+    <button class="nav-btn" id="btn-deeper" onclick="handleDeeperClick()">Go deeper ↓</button>
+    <button class="nav-btn" id="btn-archive" onclick="handleArchiveClick()">See archive ↓</button>
+  </div>
+</div>
+
+<script>
+const SHEET_ID='1hMRxFT9kAaGQ7rGU9G8R5cpfrMM8I8nyrxLiJ1KFoBg';
+const CURATED_COUNT=5;
+
+let ALL_ROWS=[];
+let DECK=[];
+let IDX=0;
+let MODE='curated'; // 'curated'|'archive'|'deeper'
+let ARCHIVE_REVERSED=false;
+let DEEPER_THEME='';
+let PREV_STATE=null;
+let TX=0,TY=0;
+let IS_ANIMATING=false;
+
+// STEEP → CSS class map
+const STEEP_CLASS={
+  'social':'steep-social','society':'steep-social',
+  'technological':'steep-technological','technology':'steep-technological',
+  'economic':'steep-economic','economy':'steep-economic',
+  'environmental':'steep-environmental','environment':'steep-environmental',
+  'political':'steep-political','politics':'steep-political',
+  'legal':'steep-legal','legal/regulatory':'steep-legal',
+};
+// Placeholder icons per STEEP
+const STEEP_ICON={
+  'steep-social':'👥','steep-technological':'⚡','steep-economic':'📊',
+  'steep-environmental':'🌿','steep-political':'🏛','steep-legal':'⚖️','steep-default':'🔭'
+};
+
+function getSteepClass(theme){
+  if(!theme)return'steep-default';
+  const t=theme.toLowerCase();
+  for(const[k,v]of Object.entries(STEEP_CLASS)){if(t.includes(k))return v;}
+  return'steep-default';
+}
+
+// CSV parse
+function parseCSV(text){
+  const rows=[];let i=0;
+  while(i<text.length){
+    const row=[];
+    while(i<text.length&&text[i]!=='\n'){
+      if(text[i]==='"'){
+        let cell='';i++;
+        while(i<text.length){
+          if(text[i]==='"'&&text[i+1]==='"'){cell+='"';i+=2;}
+          else if(text[i]==='"'){i++;break;}
+          else cell+=text[i++];
+        }
+        row.push(cell);if(text[i]===',')i++;
+      }else{
+        let cell='';
+        while(i<text.length&&text[i]!==','&&text[i]!=='\n')cell+=text[i++];
+        row.push(cell);if(text[i]===',')i++;
+      }
+    }
+    if(text[i]==='\n')i++;
+    if(row.some(c=>c.trim()))rows.push(row);
+  }
+  return rows;
+}
+
+async function loadData(){
+  const sheetNames=['Archive','archive','Sheet1'];
+  let rows=[];
+  let loaded=false;
+
+  for(let si=0;si<sheetNames.length;si++){
+    const sheetName=sheetNames[si];
+    try{
+      const url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&sheet='+encodeURIComponent(sheetName);
+      const res=await Promise.race([
+        fetch(url),
+        new Promise(function(_,reject){setTimeout(function(){reject(new Error('Timeout'));},10000);})
+      ]);
+      if(!res.ok)continue;
+      const text=await res.text();
+      if(text.indexOf('google-visualization-errors')>-1||text.trim().length<20)continue;
+      rows=parseCSV(text).slice(1);
+      if(rows.length>0){
+        console.log('Loaded',rows.length,'rows from sheet:',sheetName);
+        loaded=true;
+        break;
+      }
+    }catch(err){
+      console.log('Failed sheet',sheetName,':',err.message);
+    }
+  }
+  if(!loaded||!rows.length)return false;
+
+  ALL_ROWS=rows.map(r=>{
+    const rawUrl=(r[0]||'').trim();
+    const rawDate=(r[1]||'').trim();
+    const content=(r[2]||'').trim();
+    const tags=(r[5]||r[3]||'').trim();
+    const theme=(r[6]||'').trim();
+    const summary=(r[4]||'').trim();
+    const ogImage=(r[9]||'').trim();
+    let date=null;
+    if(rawDate){
+      date=new Date(rawDate);
+      if(isNaN(date)){const m=rawDate.match(/(\d{1,2})\s+(\w{3})\s+(\d{4})/);if(m)date=new Date(m[1]+' '+m[2]+' '+m[3]);}
+    }
+    const urlMatch=content.match(/https?:\/\/\S+/);
+    const articleUrl=urlMatch?urlMatch[0]:rawUrl;
+    const txt=content.replace(/https?:\/\/\S+/g,'').trim()||summary;
+    let domain='';try{domain=new URL(articleUrl||rawUrl).hostname.replace('www.','');}catch(_){}
+    const steepClass=getSteepClass(theme);
+    return{rawUrl,articleUrl:articleUrl||rawUrl,date,text:txt,tags,theme,summary,ogImage,domain,steepClass};
+  }).filter(r=>r.text&&r.date&&!isNaN(r.date)).sort((a,b)=>b.date-a.date);
+  return ALL_ROWS.length>0;
+}
+
+// Seeded random stable per day, refreshes at 3am
+function seededRandom(seed){
+  let s=seed;
+  return()=>{s=(s*1664525+1013904223)&0xffffffff;return(s>>>0)/0xffffffff;};
+}
+function getDailySeed(){
+  const d=new Date();
+  const day=d.getHours()<3?d.getDate()-1:d.getDate();
+  return d.getFullYear()*10000+(d.getMonth()+1)*100+day;
+}
+function getCuratedDeck(){
+  const rng=seededRandom(getDailySeed());
+  const pool=[...ALL_ROWS];const picked=[];
+  while(picked.length<CURATED_COUNT&&pool.length>0){
+    const i=Math.floor(rng()*pool.length);picked.push(pool.splice(i,1)[0]);
+  }
+  return picked;
+}
+
 // Render
 function fillCard(row){
   const card=document.getElementById('card');
