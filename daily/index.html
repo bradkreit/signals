@@ -219,7 +219,7 @@ function getCuratedDeck(){
   const day=d.getHours()<3?d.getDate()-1:d.getDate();
   let s=d.getFullYear()*10000+(d.getMonth()+1)*100+day;
   const rng=()=>{s=(s*1664525+1013904223)&0xffffffff;return(s>>>0)/0xffffffff;};
-  const pool=ALL_ROWS.slice(0,120),picked=[];
+  const pool=[...ALL_ROWS],picked=[];
   while(picked.length<CURATED_COUNT&&pool.length)picked.push(pool.splice(Math.floor(rng()*pool.length),1)[0]);
   return picked;
 }
