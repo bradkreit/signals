@@ -106,6 +106,39 @@
         height: 42px;
         margin-top: 14px;
         flex-shrink: 0;
+        touch-action: none;
+        cursor: pointer;
+    }
+
+    .spine-hint {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: #332f3e;
+        margin-top: -2px;
+        flex-shrink: 0;
+        height: 10px;
+    }
+
+    .spine-scrub {
+        position: absolute;
+        top: 19px;
+        bottom: 8px;
+        width: 1px;
+        background: #5a5370;
+    }
+
+    .spine-scrub-lbl {
+        position: absolute;
+        top: 2px;
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: var(--txt);
+        transform: translateX(-50%);
+        white-space: nowrap;
     }
 
     .spine-line {
@@ -441,6 +474,7 @@
         <div class="spine" id="spine">
             <div class="spine-line"></div>
         </div>
+        <div class="spine-hint" id="spine-hint"></div>
 
         <div class="card" id="card">
             <div class="ago" id="ago" style="display:none;"></div>
@@ -533,6 +567,9 @@
         BUSY = false,
         TX = 0,
         TY = 0;
+    let SCRUBBING = false,
+        SCRUB_T = 0,
+        DAY_LABEL = '';
     let RATINGS = {},
         QUEUE = [];
 
@@ -963,12 +1000,14 @@
             cnt.textContent = 'Archive ' + pad(IDX + 1) + ' / ' + DECK.length;
         else if (MODE === 'deeper')
             cnt.textContent = (themeLabel(DEEPER_THEME) || 'Thread') + ' ' + pad(IDX + 1) + '/' + pad(DECK.length);
+        else if (MODE === 'day')
+            cnt.textContent = DAY_LABEL + ' · ' + pad(IDX + 1) + '/' + pad(DECK.length);
         else
             cnt.textContent = pad(IDX + 1) + ' / ' + pad(DECK.length);
 
         document.getElementById('btn-back').classList.toggle('off', IDX === 0);
         document.getElementById('btn-next').textContent =
-        IDX >= DECK.length - 1 ? (MODE === 'then' ? 'Back to first' : 'Start over') : 'Next';
+        IDX >= DECK.length - 1 ? (MODE === 'today' ? 'Start over' : 'Back to first') : 'Next';
         document.getElementById('btn-deeper').textContent = MODE === 'deeper' ? '← today' : 'more like this';
         document.getElementById('btn-archive').textContent = MODE === 'archive' ? '← today' : 'archive';
 
@@ -988,6 +1027,9 @@
             jb.style.display = 'none';
 
         renderSpine();
+        const hint = document.getElementById('spine-hint');
+        if (hint)
+            hint.textContent = ALL_ROWS.length ? (MODE === 'day' ? '' : 'press the timeline for any day') : '';
     }
 
     function swap(fn) {
@@ -1098,6 +1140,101 @@
             JUMP_DATE = from;
         });
     }
+
+    /* ── spine scrubbing: tap or drag to open that day ── */
+    function timeAt(e) {
+        const el = document.getElementById('spine');
+        const r = el.getBoundingClientRect();
+        const f = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+        return SPAN_MIN + f * (SPAN_MAX - SPAN_MIN);
+    }
+    function nearestDay(t) {
+        if (!ALL_ROWS.length)
+            return null;
+        let best = ALL_ROWS[0],
+            bd = Infinity;
+        ALL_ROWS.forEach(r => {
+            const d = Math.abs(r.date.getTime() - t);
+            if (d < bd) {
+                bd = d;
+                best = r;
+            }
+        });
+        return best.date;
+    }
+    function drawScrub() {
+        const el = document.getElementById('spine');
+        el.querySelectorAll('.spine-scrub,.spine-scrub-lbl').forEach(n => n.remove());
+        if (!SCRUBBING)
+            return;
+        const p = pct(SCRUB_T),
+            day = nearestDay(SCRUB_T);
+        const a = document.createElement('div');
+        a.className = 'spine-scrub';
+        a.style.left = p + '%';
+        el.appendChild(a);
+        if (day) {
+            const b = document.createElement('div');
+            b.className = 'spine-scrub-lbl';
+            b.style.left = Math.max(9, Math.min(91, p)) + '%';
+            b.textContent = day.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+            el.appendChild(b);
+        }
+    }
+    function openDay(date) {
+        const y = date.getFullYear(),
+            m = date.getMonth(),
+            d = date.getDate();
+        const hits = ALL_ROWS.filter(r => r.date.getFullYear() === y && r.date.getMonth() === m && r.date.getDate() === d);
+        if (!hits.length)
+            return;
+        DAY_LABEL = date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+        swap(() => {
+            MODE = 'day';
+            DECK = hits;
+            IDX = 0;
+            DEEPER_THEME = '';
+            JUMP_DATE = null;
+        });
+    }
+    (function() {
+        const el = document.getElementById('spine');
+        el.addEventListener('pointerdown', e => {
+            if (!ALL_ROWS.length)
+                return;
+            SCRUBBING = true;
+            SCRUB_T = timeAt(e);
+            try {
+                el.setPointerCapture(e.pointerId);
+            } catch (_) {}
+            drawScrub();
+        });
+        el.addEventListener('pointermove', e => {
+            if (!SCRUBBING)
+                return;
+            SCRUB_T = timeAt(e);
+            drawScrub();
+        });
+        const end = () => {
+            if (!SCRUBBING)
+                return;
+            SCRUBBING = false;
+            drawScrub();
+            const day = nearestDay(SCRUB_T);
+            if (day)
+                openDay(day);
+        };
+        el.addEventListener('pointerup', end);
+        el.addEventListener('pointercancel', end);
+    })();
 
     /* ── input ───────────────────────────────── */
     document.addEventListener('touchstart', e => {
