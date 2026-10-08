@@ -1,0 +1,144 @@
+Family,Tag,Definition,Signals
+AI systems,AI agents,Autonomous/agentic AI acting on users' behalf,81
+AI systems,AI reliability & hallucination,"AI errors, hallucinations, brittleness, failures",80
+AI systems,Generative AI & LLMs,Large language models and generative systems as technology,68
+AI systems,AI training data & copyright,"Data scraping, training data, IP and copyright fights",64
+AI systems,AI hype & capability claims,Gap between AI marketing claims and reality,54
+AI systems,Frontier AI labs & models,"OpenAI, Anthropic, Google, xAI, Meta, DeepSeek etc. as actors; open vs. closed models",47
+AI systems,AI safety & alignment,"Alignment, safety research, guardrails, dangerous capabilities",44
+AI systems,Enterprise AI adoption,How organizations adopt and deploy AI,42
+AI systems,AI companions & chatbots,Emotional/companion relationships with AI,36
+AI systems,AI security & prompt injection,Attacks on/with AI systems,32
+AI systems,Autonomous vehicles,"Self-driving cars, robotaxis",31
+AI systems,Compute & AI infrastructure,"Data centers, chips, compute and frontier hardware incl. quantum",29
+AI systems,AI in software development,"AI coding, vibe coding, software engineering change",25
+AI systems,Robotics & embodied AI,"Robots, humanoids, physical AI",24
+AI systems,AI for science & discovery,AI used in research and scientific discovery,4
+AI governance,Algorithmic bias & fairness,Discrimination and bias in automated systems,27
+AI governance,Algorithmic decision-making,"Automated decisions in hiring, pricing, welfare, justice and government",21
+AI governance,Military & defense AI,"AI in warfare, defense, intelligence",21
+AI governance,AI accountability & oversight,Who is responsible when AI causes harm; human-in-the-loop and liability,12
+AI governance,AI governance & regulation,"Laws, policy and frameworks governing AI",10
+AI governance,AI ethics,Ethical debates about AI development and use,9
+Information ecosystem,AI slop & content flood,Low-quality AI-generated content saturating channels,89
+Information ecosystem,Synthetic media & deepfakes,"AI-generated images, video, voice impersonation",76
+Information ecosystem,Journalism & news business,"News industry, media economics, editorial standards",59
+Information ecosystem,Search & web decay,"Search quality, AI overviews, platform decay of the web",58
+Information ecosystem,Knowledge commons & open web,"Wikipedia, archives, open knowledge, link rot",46
+Information ecosystem,Misinformation & disinformation,"False information, propaganda, influence operations",45
+Information ecosystem,Media framing & coverage,How media covers and frames issues,38
+Information ecosystem,Content moderation,Platform moderation policies and failures,28
+Information ecosystem,Attention economy,"Engagement optimization, attention capture",20
+Information ecosystem,Epistemic crisis,Breakdown of shared truth and ways of knowing,13
+Information ecosystem,Verification & provenance,"Authenticating content, identity, sources",12
+Information ecosystem,Algorithmic amplification,Recommendation algorithms shaping what spreads,8
+Platforms & digital economy,Smart devices & IoT,"Connected devices, smart TVs, wearables, home tech",57
+Platforms & digital economy,Social media platforms,"Facebook, X, TikTok, Instagram, YouTube dynamics",54
+Platforms & digital economy,Big Tech power & antitrust,Market and political power of large tech firms; monopoly and competition policy,42
+Platforms & digital economy,Advertising & ad tech,Online ads and ad-supported business models,34
+Platforms & digital economy,Creator economy,"Creators, influencers, Substack, monetization",28
+Platforms & digital economy,Online shopping & commerce,"E-commerce, agentic commerce, retail tech",21
+Platforms & digital economy,Gig & platform labor,"Gig work, platform-mediated work, data labelers",15
+Platforms & digital economy,Ownership & right to repair,"Digital ownership, lock-in, forced updates, repair",15
+Platforms & digital economy,Digital identity & age verification,"Online identity systems, age checks, ID",13
+Platforms & digital economy,Payments & fintech,"Payments, fintech, banking tech, stablecoins",12
+Platforms & digital economy,Decentralized social,"Bluesky, fediverse, alternatives to big platforms",5
+Privacy & surveillance,Data privacy,Personal data protection and privacy erosion,35
+Privacy & surveillance,Surveillance,Monitoring of people by states or companies,30
+Privacy & surveillance,Biometrics & facial recognition,"Face, voice, body data and recognition systems",14
+Privacy & surveillance,Children's online safety,"Kids and teens online, child protection",11
+Privacy & surveillance,Data extraction & monetization,Companies harvesting and selling data,9
+Privacy & surveillance,Workplace surveillance,Employer monitoring of workers,9
+Security & risk,Fraud & scams,"Scams, fraud, financial crime",44
+Security & risk,Cybersecurity,"Hacks, breaches, vulnerabilities",40
+Security & risk,Supply chains,Supply chain disruption and dependence,17
+Security & risk,Critical infrastructure,"Power grid, water, telecom, essential systems",16
+Security & risk,Systemic risk & unintended consequences,"Fragility, cascading failures and second-order effects",16
+Security & risk,Dual-use technology,Tech with both beneficial and harmful uses,5
+Work & organizations,Job displacement & automation,Automation replacing jobs and tasks,51
+Work & organizations,Hiring & recruiting,"Recruiting, job search, applicant screening",43
+Work & organizations,Workplace culture & management,"Management practices, culture, leadership",36
+Work & organizations,Skills & deskilling,"Skill gaps, reskilling, skill atrophy",22
+Work & organizations,Burnout & worker wellbeing,"Exhaustion, burnout, work-life balance",21
+Work & organizations,Entry-level jobs & career ladders,"Early-career pathways, junior roles, career ladders",17
+Work & organizations,Future of work,Broad changes in how work is structured,16
+Work & organizations,Organizational strategy & decisions,"How organizations decide, plan, adapt",15
+Work & organizations,Productivity & its paradoxes,"Productivity gains, measurement and paradoxes",14
+Work & organizations,Human-AI collaboration,How people and AI work together,10
+Work & organizations,Knowledge work,Professional and white-collar work,7
+Work & organizations,Labor rights & organizing,"Unions, worker power, labor exploitation",7
+Economy & markets,Prediction markets,"Kalshi, Polymarket, betting on events",43
+Economy & markets,Inequality & wealth concentration,"Wealth gaps, billionaires, economic inequality",39
+Economy & markets,Macroeconomy,"Inflation, recession, interest rates, the Fed",37
+Economy & markets,Crypto,"Cryptocurrency, blockchain, web3",36
+Economy & markets,Venture capital & startups,"VC funding, startup dynamics",30
+Economy & markets,Gambling & sports betting,"Sports betting, gambling normalization",30
+Economy & markets,AI investment & bubble risk,"AI capital spending, valuations, bubble dynamics",29
+Economy & markets,Trade & tariffs,"Tariffs, trade policy, protectionism",22
+Economy & markets,Financialization,Turning everything into financial assets/markets,17
+Economy & markets,Consumer behavior,Shifts in what and how people buy,16
+Economy & markets,Corporate accountability,Corporate misconduct and responsibility,14
+Economy & markets,Business model disruption,Incumbent business models under pressure,13
+Economy & markets,Market manipulation & insider trading,"Insider trading, manipulation, financial misconduct",13
+Economy & markets,Housing & cost of living,"Housing affordability, rents, cost of living",8
+Politics & governance,Trump administration,Actions and dynamics of the Trump administration,161
+Politics & governance,Government capacity & DOGE,"State capacity, civil service cuts, DOGE",61
+Politics & governance,Immigration,Immigration policy and enforcement,57
+Politics & governance,Elections & voting,"Elections, campaigns, voting, election integrity",47
+Politics & governance,Courts & rule of law,"Judiciary, legal system, due process",46
+Politics & governance,Political polarization,Partisan division and political identity,45
+Politics & governance,Geopolitics,"International relations, conflict, global order",42
+Politics & governance,Democratic erosion,"Backsliding, authoritarianism, norm erosion",32
+Politics & governance,Political violence & guns,"Political violence, guns, threats and intimidation",28
+Politics & governance,Political communication & propaganda,"Messaging, spin, political media strategies",21
+Politics & governance,Civil rights & DEI,"DEI, trans rights, discrimination and civil-rights policy",21
+Politics & governance,Executive power,Expansion of presidential/executive authority,20
+Politics & governance,Local & state governance,"Cities, states, local public services",16
+Politics & governance,Policing & criminal justice,"Police, law enforcement, prisons",16
+Politics & governance,US–China competition,Tech and strategic rivalry between US and China,14
+Politics & governance,Regulatory capture & arbitrage,Industry capture of regulators; exploiting gaps,11
+Politics & governance,Regulation & policy,Tech and business regulation beyond AI,10
+Politics & governance,Corruption & self-dealing,"Corruption, conflicts of interest, grift",7
+Institutions & trust,Science & research integrity,"Scientific publishing, research funding, integrity",33
+Institutions & trust,Brain drain & talent migration,Movement of researchers and talent,23
+Institutions & trust,Institutional trust,Public confidence in institutions,11
+Institutions & trust,Institutional legitimacy & decay,Institutions losing capacity or legitimacy,11
+Institutions & trust,Accountability avoidance,Incentives to disclaim responsibility; blame-shifting,8
+Institutions & trust,Expertise & authority,Status of experts and expertise,6
+Society & culture,Arts & culture,"Creative industries, music, film, books and games",59
+Society & culture,Higher education,"Universities, college, academic institutions",37
+Society & culture,Cognitive effects of tech,"Cognitive offloading, attention, thinking skills",30
+Society & culture,Sports,Sports industry and culture,28
+Society & culture,Childhood & parenting,"Kids, parenting, child development",23
+Society & culture,Mental health,"Mental health trends, crises, services",20
+Society & culture,K-12 education,"Schools, teachers, students below college",20
+Society & culture,Social norms & values,"Shifts in norms, manners, and public values",20
+Society & culture,Demographics & aging,"Fertility, aging, population change",19
+Society & culture,Cities & mobility,"Urban life, transit, cars, bikes",19
+Society & culture,Loneliness & human connection,"Social isolation, relationships, community",14
+Society & culture,Food & dining,"Food culture, restaurants, recipes",14
+Society & culture,Reproductive rights,"Abortion access, reproductive health policy",13
+Society & culture,Religion & meaning,"Religion, spirituality, meaning-making",11
+Society & culture,Dating & relationships,"Romance, dating apps, marriage",10
+Society & culture,Language & writing,"Writing, language use, style",9
+Society & culture,Cheating & academic integrity,"AI and cheating, assessment integrity",7
+Health & biology,Public health,"Population health, CDC, public health policy",33
+Health & biology,Medical misinformation & vaccines,"Health misinformation, vaccine hesitancy",21
+Health & biology,Health care system,"Hospitals, insurance, providers, health costs",20
+Health & biology,Biotech & synthetic biology,"Genetic engineering, synthetic bio, biotech",18
+Health & biology,Drugs & pharma,"Pharmaceuticals, GLP-1s, drug pricing",17
+Health & biology,Medical AI,"AI in diagnosis, prescribing, clinical care",14
+Health & biology,Longevity & biohacking,"Life extension, biohacking, enhancement",5
+Environment & energy,Climate change,Climate change and climate policy,17
+Environment & energy,Disasters & extreme weather,"Extreme weather, fires, floods, disaster response",17
+Environment & energy,Energy & AI power demand,"Energy systems, electricity demand, nuclear, renewables",16
+Environment & energy,Environmental policy & sustainability,"Environmental rules, conservation, circularity",10
+Environment & energy,Agriculture & food systems,"Farming, food supply, agriculture",6
+Science & frontier tech,Bots & machine-to-machine web,"Bot traffic, machine-readable web, AI crawlers",20
+Science & frontier tech,Space,Space industry and exploration,17
+Science & frontier tech,Brain-computer interfaces & neurotech,"BCI, neural data, neurotech",7
+Science & frontier tech,Internet infrastructure & governance,"Internet architecture, protocols, governance",6
+Foresight & method,Technology adoption & backlash,Diffusion of tech and public resistance to it,23
+Foresight & method,Foresight practice,"Strategic foresight, scenarios, weak signals as a discipline",19
+Foresight & method,Friction & convenience,"Value of friction, convenience trade-offs, UX",17
+Foresight & method,Forecasting & predictions,"Predictions, forecasts, and how they fare",12
