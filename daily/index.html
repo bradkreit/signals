@@ -333,13 +333,14 @@
     }
 
     .rate-row {
-        display: flex;
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
         gap: 7px;
     }
 
     .rate-row button {
-        flex: 1;
-        min-height: 46px;
+        grid-column: span 2;
+        min-height: 42px;
         padding: 6px 4px;
         cursor: pointer;
         border: 1px solid var(--line);
@@ -358,10 +359,46 @@
         background: #161420;
     }
 
+    .rate-row button:nth-child(n+4) {
+        grid-column: span 3;
+    }
+
     .rate-row button.on {
         border-color: var(--accent, var(--accent-default));
         color: var(--txt);
         background: #17151f;
+    }
+
+    .connect[hidden] {
+        display: none;
+    }
+
+    .connect {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+    }
+
+    .connect input {
+        flex: 1;
+        min-width: 0;
+        background: transparent;
+        border: 1px solid var(--line2);
+        color: var(--txt);
+        font: 11px var(--mono);
+        padding: 7px 8px;
+        border-radius: 2px;
+    }
+
+    .connect button {
+        background: transparent;
+        border: 1px solid var(--line2);
+        color: var(--txt2);
+        font: 10px var(--mono);
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        padding: 0 10px;
+        cursor: pointer;
     }
 
     .rate-status {
@@ -494,23 +531,18 @@
         <div class="rate" id="rate" style="display:none;">
             <div class="rate-q" id="rate-q">Where has this gone?</div>
             <div class="rate-row">
-                <button data-v="fizzled" onclick="rate('fizzled')">
-                    Fizzled
-                    <br>
-                    out
-                </button>
-                <button data-v="continuing" onclick="rate('continuing')">
-                    Continuing
-                    <br>
-                    same way
-                </button>
-                <button data-v="shifting" onclick="rate('shifting')">
-                    Shifting
-                    <br>
-                    impacts
-                </button>
+                <button data-v="fizzled" onclick="rate('fizzled')">Fizzled<br>out</button>
+                <button data-v="fringe" onclick="rate('fringe')">Still<br>fringe</button>
+                <button data-v="continuing" onclick="rate('continuing')">Continuing<br>same way</button>
+                <button data-v="accelerating" onclick="rate('accelerating')">Accel&shy;erating</button>
+                <button data-v="shifting" onclick="rate('shifting')">Shifting<br>impacts</button>
             </div>
-            <div class="rate-status" id="rate-status"></div>
+            <div class="rate-status" id="rate-status" onclick="if(!RATINGS_URL)connectSheet()"></div>
+            <div class="connect" id="connect" hidden>
+                <input id="cx-url" type="url" placeholder="Apps Script /exec URL" autocomplete="off" autocapitalize="none" spellcheck="false">
+                <input id="cx-token" type="text" placeholder="token" autocomplete="off" autocapitalize="none" spellcheck="false">
+                <button onclick="saveEndpoint()">Connect</button>
+            </div>
         </div>
 
         <div class="nav disabled" id="nav">
@@ -529,14 +561,45 @@
     <script>
     /* ═══════════════════════════════════════════════════════════
        CONFIG
-       RATINGS_URL — paste your Apps Script Web App /exec URL here.
+       RATINGS_URL / token — read from this browser's saved settings (see loadEndpoint).
        Deploy: Extensions → Apps Script in the sheet, paste the
        doPost snippet, Deploy → Web app → Execute as: Me,
        Access: Anyone. See README notes.
        ═══════════════════════════════════════════════════════════ */
     const SHEET_ID = '1hMRxFT9kAaGQ7rGU9G8R5cpfrMM8I8nyrxLiJ1KFoBg';
-    const RATINGS_URL = ''; // ← your existing Apps Script /exec URL
-    const RATINGS_TOKEN = 'pickles1129'; // ← SECRET_TOKEN from your Apps Script
+    // The Apps Script URL and token are NOT stored in this public file.
+    // They come from this browser's saved settings: the dashboard's Settings
+    // (bradkreit.com/signals), the Thoughts page, or the "connect" prompt here.
+    let RATINGS_URL = '', RATINGS_TOKEN = '';
+    function loadEndpoint() {
+        const tryKey = (k, u, t) => {
+            try {
+                const c = JSON.parse(localStorage.getItem(k) || '{}');
+                if (c[u] && c[t]) { RATINGS_URL = c[u]; RATINGS_TOKEN = c[t]; return true; }
+            } catch (e) {}
+            return false;
+        };
+        return tryKey('daily-signal-endpoint', 'url', 'token') ||
+            tryKey('weaksig_dash_config', 'appsScriptUrl', 'appsScriptToken') ||
+            tryKey('weaksig_thoughts_cfg', 'url', 'token');
+    }
+    function connectSheet() {
+        const box = document.getElementById('connect');
+        box.hidden = !box.hidden;
+        if (!box.hidden) {
+            document.getElementById('cx-url').value = RATINGS_URL;
+            document.getElementById('cx-token').value = RATINGS_TOKEN;
+        }
+    }
+    function saveEndpoint() {
+        const u = document.getElementById('cx-url').value.trim(), t = document.getElementById('cx-token').value.trim();
+        if (!/^https:\/\/script\.google\.com\//.test(u) || !t) { setStatus('paste the /exec url and token'); return; }
+        try { localStorage.setItem('daily-signal-endpoint', JSON.stringify({ url: u, token: t })); } catch (e) {}
+        RATINGS_URL = u; RATINGS_TOKEN = t;
+        document.getElementById('connect').hidden = true;
+        setStatus('connected · sending queued ratings');
+        flushQueue();
+    }
     const CURATED_COUNT = 5;
     const THEN_YEARS_BACK = 8; // how many prior years "Then" walks
 
@@ -553,7 +616,9 @@
     const RATE_LABEL = {
         fizzled: 'fizzled out',
         continuing: 'continuing same way',
-        shifting: 'shifting impacts'
+        shifting: 'shifting impacts',
+        fringe: 'still fringe',
+        accelerating: 'accelerating'
     };
 
     let ALL_ROWS = [],
@@ -664,7 +729,7 @@
         saveStore();
         paintRating(row);
         if (!RATINGS_URL) {
-            setStatus('saved on device · sheet not connected');
+            setStatus('saved on device · tap to connect sheet');
             return;
         }
         setStatus(cleared ? 'clearing…' : 'saving…');
@@ -1251,6 +1316,7 @@
         go(dx < 0 ? 1 : -1);
     });
     document.addEventListener('keydown', e => {
+        if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
         if (e.key === 'ArrowRight')
             go(1);
         if (e.key === 'ArrowLeft')
@@ -1262,6 +1328,7 @@
 
     async function init() {
         loadStore();
+        loadEndpoint();
         try {
             const ok = await loadData();
             if (!ok)
