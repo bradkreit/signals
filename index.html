@@ -1829,27 +1829,23 @@
                 <div class="tp" id="tp-hm">
                     <div class="card" style="margin-bottom:16px;">
                         <div class="ctitle">
-                            Theme co-occurrence matrix 
-                            <span class="chint">click any cell</span>
+                            Family co-occurrence
+                            <span class="v2seg" id="v2hm-mode"><button data-m="count" onclick="v2HmMode('count')">Count</button><button data-m="lift" class="on" onclick="v2HmMode('lift')">Surprise</button></span>
                         </div>
-                        <div class="hmwrap">
-                            <table class="hmtbl" id="hmt"></table>
-                        </div>
-                        <p style="font-size:11px;color:var(--txt3);margin-top:14px;font-family:var(--mono);">Diagonal = all signals for that theme. Off-diagonal = signals sharing both themes.</p>
+                        <div class="v2wrap" id="v2hm"></div>
+                        <p class="v2note">Diagonal = all signals in that family. Other cells = signals tagged in both families. Surprise compares that number with what you'd expect by chance, so big families don't dominate. Click a cell to see the tag pairs that connect two families.</p>
                     </div>
                     <div class="r2b">
                         <div class="card">
-                            <div class="ctitle">
-                                Strongest co-occurrences 
-                                <span class="chint">click</span>
-                            </div>
-                            <div class="slist" id="sc"></div>
+                            <div class="ctitle" id="v2hm-side-t">Most surprising links <span class="chint">click</span></div>
+                            <div class="slist" id="v2hm-side"></div>
                         </div>
                         <div class="card">
                             <div class="ctitle">Notable absences</div>
-                            <div class="slist" id="ac"></div>
+                            <div class="slist" id="v2hm-abs"></div>
                         </div>
                     </div>
+                    <div hidden><table class="hmtbl" id="hmt"></table><div id="sc"></div><div id="ac"></div></div>
                 </div>
                 <div class="tp" id="tp-wk">
                     <div class="card">
@@ -1872,16 +1868,10 @@
                 <div class="tp" id="tp-net">
                     <div class="card" style="margin-bottom:12px;">
                         <div class="ctitle">
-                            Theme connection network 
-                            <span class="chint">nodes = themes, edges = co-occurrences</span>
+                            Tag connections
+                            <span class="v2seg" id="v2net-mode"><button data-v="focus" class="on" onclick="v2NetView('focus')">Focus</button><button data-v="new" onclick="v2NetView('new')">New connections</button></span>
                         </div>
-                        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-                            <button class="rbtn" onclick="renderNet('theme')" id="net-btn-theme" style="background:var(--blue);color:#fff;">By theme</button>
-                            <button class="rbtn" onclick="renderNet('signal')" id="net-btn-signal">By signal</button>
-                            <span style="font-size:11px;color:var(--txt3);align-self:center;font-family:var(--mono);">Click nodes to explore signals</span>
-                        </div>
-                        <canvas id="netCanvas" style="width:100%;background:var(--bg);border-radius:0;" height="520">
-                        </canvas>
+                        <div id="v2net"></div>
                     </div>
                 </div>
                 <div class="tp" id="tp-cl">
@@ -3809,7 +3799,9 @@
         document.querySelectorAll('.tab')[idx].classList.add('active');
         document.getElementById('tp-' + name).classList.add('active');
         if (name === 'net')
-            renderNet('theme');
+            v2Net();
+        if (name === 'hm')
+            v2Cooc();
         if (name === 'cl')
             initCluster();
         if (name === 'sc2')
@@ -11827,5 +11819,272 @@ ${
 
     loadAll();
     </script>
+<!-- ═══ V2: tag-based Co-occurrence + Network (reads 'Signals_clean' + 'Tag vocabulary') ═══ -->
+<style>
+    .v2seg { display:inline-flex; border:1px solid var(--bor2); }
+    .v2seg button { font-family:var(--mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase; padding:5px 10px; border:0; background:transparent; color:var(--txt2); cursor:pointer; }
+    .v2seg button.on { background:var(--blue); color:#fff; }
+    .v2note { font-size:11px; color:var(--txt3); margin-top:12px; font-family:var(--mono); line-height:1.6; }
+    .v2hm { border-collapse:separate; border-spacing:2px; }
+    .v2hm th { font-family:var(--mono); font-size:10px; font-weight:400; color:var(--txt2); }
+    .v2hm th.rl { text-align:right; padding-right:8px; white-space:nowrap; color:var(--txt); }
+    .v2hm thead th { height:118px; vertical-align:bottom; padding:0; }
+    .v2hm thead th span { display:inline-block; transform:rotate(-55deg); transform-origin:left bottom; white-space:nowrap; width:20px; margin-left:14px; text-align:left; }
+    .v2hm td { width:38px; height:30px; text-align:center; font-family:var(--mono); font-size:10.5px; cursor:pointer; }
+    .v2hm td:hover { outline:2px solid var(--txt); }
+    .v2hm td.sel { outline:2px solid var(--blue); }
+    .v2hm td.dg { background:#E2DDD5; color:var(--txt2); }
+    .v2wrap { overflow-x:auto; }
+    .v2legend { display:flex; gap:6px; align-items:center; flex-wrap:wrap; font-family:var(--mono); font-size:10px; color:var(--txt3); margin-top:10px; }
+    .v2legend i { width:18px; height:11px; display:inline-block; }
+    .v2grid { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:18px; align-items:start; }
+    @media (max-width: 900px) { .v2grid { grid-template-columns:1fr; } }
+    .v2pick { display:grid; gap:8px; margin-bottom:8px; }
+    .v2pick input { font-family:var(--sans); font-size:13px; padding:7px 10px; border:1px solid var(--bor2); background:var(--field); color:var(--txt); width:100%; }
+    .v2chips { display:flex; flex-wrap:wrap; gap:6px; }
+    .v2chip { font-family:var(--sans); font-size:11.5px; padding:3px 8px; border:1px solid var(--bor); background:var(--sur2); color:var(--txt); cursor:pointer; }
+    .v2chip:hover { background:var(--sur3); }
+    #v2net svg text { font-family:var(--sans); }
+    .v2lbl { font-size:12px; fill:var(--txt); paint-order:stroke; stroke:var(--sur); stroke-width:4px; stroke-linejoin:round; }
+    .v2sub { font-size:10px; fill:var(--txt3); font-family:var(--mono); paint-order:stroke; stroke:var(--sur); stroke-width:4px; stroke-linejoin:round; }
+    .v2ttl { font-size:17px; font-weight:600; fill:var(--txt); }
+    .v2nb { cursor:pointer; }
+    .v2nb:hover circle { stroke:var(--blue); stroke-width:2; }
+    .v2msg { font-size:12px; color:var(--txt2); line-height:1.6; }
+</style>
+<script>
+(function () {
+    let V2 = null, V2P = null;
+    const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+    function v2Load() {
+        if (V2P) return V2P;
+        V2P = (async () => {
+            const [sr, vr] = await Promise.all([fetchCSV('Signals_clean'), fetchCSV('Tag vocabulary')]);
+            const vh = (vr[0] || []).map(x => String(x).trim()), sh = (sr[0] || []).map(x => String(x).trim());
+            if (vh[1] !== 'Tag' || sh[3] !== 'Tags') throw new Error('The "Signals_clean" and "Tag vocabulary" tabs were not found. Run importCleanTabs() in Apps Script.');
+            const fams = [], T = [], byName = {};
+            vr.slice(1).forEach(r => {
+                const f = String(r[0] || '').trim(), n = String(r[1] || '').trim();
+                if (!n || byName[n] !== undefined) return;
+                if (fams.indexOf(f) < 0) fams.push(f);
+                byName[n] = T.length;
+                T.push({ n, f: fams.indexOf(f), d: String(r[2] || '').trim() });
+            });
+            const S = [];
+            sr.slice(1).forEach(r => {
+                const url = String(r[0] || '').trim(), date = pd(String(r[1] || '').trim());
+                if (!url.startsWith('http') || !date) return;
+                const tags = String(r[3] || '').split(',').map(x => byName[x.trim()]).filter(x => x !== undefined);
+                if (!tags.length) return;
+                const title = String(r[11] || '').trim() || String(r[2] || '').replace(/https?:\/\/\S+/g, '').replace(/^\[Repost from @[^\]]+\]\s*/, '').replace(/\s+/g, ' ').trim();
+                S.push({ url, date, iso: date.toISOString().slice(0, 10), title, t: [...new Set(tags)] });
+            });
+            const N = S.length, cnt = T.map(() => 0), pair = new Map(), first = new Map();
+            const key = (a, b) => Math.min(a, b) + '|' + Math.max(a, b);
+            S.slice().sort((a, b) => a.date - b.date).forEach((s, i0) => {
+                s.t.forEach(x => cnt[x]++);
+                for (let a = 0; a < s.t.length; a++) for (let b = a + 1; b < s.t.length; b++) {
+                    const k = key(s.t[a], s.t[b]);
+                    if (!pair.has(k)) { pair.set(k, []); first.set(k, s.iso); }
+                    pair.get(k).push(s);
+                }
+            });
+            const shared = (a, b) => pair.get(key(a, b)) || [];
+            const lift = (a, b) => { const n = shared(a, b).length; return n ? n * N / (cnt[a] * cnt[b]) : 0; };
+            const latest = S.reduce((m, s) => s.iso > m ? s.iso : m, '');
+            V2 = { fams, T, S, N, cnt, pair, first, key, shared, lift, latest };
+            return V2;
+        })();
+        V2P.catch(() => { V2P = null; });
+        return V2P;
+    }
+
+    // Open matching signals in the dashboard's existing drawer
+    function v2Open(title, sub, sigs) {
+        const urls = new Set(sigs.map(s => s.url));
+        const rows = ROWS.filter(r => urls.has(r.url));
+        openD(title, sub, rows.length ? rows : []);
+    }
+    const fmtD = iso => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    const fail = (el, e) => { el.innerHTML = `<p class="v2msg">${esc(e.message || e)}</p>`; };
+
+    /* ── CO-OCCURRENCE (families) ─────────────────────────────── */
+    let hmMode = 'lift', hmSel = null;
+    window.v2Cooc = function () {
+        const box = document.getElementById('v2hm');
+        if (!V2) box.innerHTML = '<p class="v2msg">Loading tags…</p>';
+        v2Load().then(drawCooc).catch(e => fail(box, e));
+    };
+    function drawCooc(D) {
+        const F = D.fams, n = F.length, fc = F.map(() => 0), m = F.map(() => F.map(() => []));
+        D.S.forEach(s => {
+            const fs = [...new Set(s.t.map(x => D.T[x].f))];
+            fs.forEach(a => fc[a]++);
+            for (let i = 0; i < fs.length; i++) for (let j = i + 1; j < fs.length; j++) { m[fs[i]][fs[j]].push(s); m[fs[j]][fs[i]].push(s); }
+        });
+        const L = (a, b) => m[a][b].length ? m[a][b].length * D.N / (fc[a] * fc[b]) : 0;
+        const maxC = Math.max(1, ...m.flatMap((r, i) => r.map((c, j) => i === j ? 0 : c.length)));
+        const ramp = ['#F7F5F0', '#C8DCEB', '#9DBCDB', '#6B95C4', '#3D69A6', '#1F4A85'];
+        const lvl = (a, b) => {
+            const c = m[a][b].length; if (!c) return 0;
+            if (hmMode === 'count') return Math.min(5, 1 + Math.floor(Math.sqrt(c / maxC) * 4.999));
+            const v = L(a, b); return v < 0.6 ? 1 : v < 1 ? 2 : v < 1.6 ? 3 : v < 2.5 ? 4 : 5;
+        };
+        let h = '<table class="v2hm"><thead><tr><th></th>' + F.map(f => `<th><span>${esc(f)}</span></th>`).join('') + '</tr></thead><tbody>';
+        for (let i = 0; i < n; i++) {
+            h += `<tr><th class="rl">${esc(F[i])}</th>`;
+            for (let j = 0; j < n; j++) {
+                if (i === j) { h += `<td class="dg" data-a="${i}" data-b="${i}" title="${esc(F[i])}: ${fc[i]} signals">${fc[i]}</td>`; continue; }
+                const c = m[i][j].length, lv = lvl(i, j), sel = hmSel && ((hmSel[0] === i && hmSel[1] === j) || (hmSel[0] === j && hmSel[1] === i));
+                h += `<td data-a="${i}" data-b="${j}" class="${sel ? 'sel' : ''}" style="background:${ramp[lv]};color:${lv >= 4 ? '#fff' : '#1B3E6B'}" title="${esc(F[i])} + ${esc(F[j])}: ${c} signals in both · ×${L(i, j).toFixed(1)} chance">${c || '—'}</td>`;
+            }
+            h += '</tr>';
+        }
+        h += '</tbody></table>';
+        const legend = hmMode === 'count'
+            ? '<div class="v2legend">Shading = number of signals in both families (darker = more)</div>'
+            : `<div class="v2legend">Shading = how often two families appear together vs. chance: ${['none', '<0.6×', '0.6–1×', '1–1.6×', '1.6–2.5×', '2.5×+'].map((t, k) => `<i style="background:${ramp[k]};outline:1px solid var(--bor)"></i>${t}`).join(' ')}</div>`;
+        document.getElementById('v2hm').innerHTML = h + legend;
+        document.querySelectorAll('#v2hm-mode button').forEach(b => b.classList.toggle('on', b.dataset.m === hmMode));
+        document.querySelectorAll('#v2hm td[data-a]').forEach(td => td.onclick = () => {
+            const a = +td.dataset.a, b = +td.dataset.b;
+            if (a === b) { v2Open(F[a], fc[a] + ' signals', D.S.filter(s => s.t.some(x => D.T[x].f === a))); return; }
+            hmSel = [a, b]; drawCooc(D); sideFor(a, b);
+        });
+        // side lists
+        const prs = [];
+        for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (m[i][j].length) prs.push({ i, j, c: m[i][j].length, l: L(i, j) });
+        if (!hmSel) {
+            const top = prs.slice().sort(hmMode === 'count' ? (x, y) => y.c - x.c : (x, y) => (y.c >= 5) - (x.c >= 5) || y.l - x.l).slice(0, 6);
+            document.getElementById('v2hm-side-t').innerHTML = (hmMode === 'count' ? 'Most shared signals' : 'Most surprising links') + ' <span class="chint">click</span>';
+            document.getElementById('v2hm-side').innerHTML = top.map((p, k) => `<div class="sitem" data-k="${k}"><div class="stxt" style="font-weight:500;">${esc(F[p.i])} ↔ ${esc(F[p.j])}</div><div class="smeta">${p.c} signals · ×${p.l.toFixed(1)} chance</div></div>`).join('');
+            document.querySelectorAll('#v2hm-side .sitem').forEach(el => el.onclick = () => { const p = top[+el.dataset.k]; hmSel = [p.i, p.j]; drawCooc(D); sideFor(p.i, p.j); });
+        }
+        const abs = prs.filter(p => fc[p.i] * fc[p.j] / D.N >= 6 && p.l < 0.5).sort((x, y) => x.l - y.l).slice(0, 5);
+        const zero = []; for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (!m[i][j].length && fc[i] > 5 && fc[j] > 5) zero.push({ i, j });
+        document.getElementById('v2hm-abs').innerHTML = [...zero.slice(0, 3).map(p => `<div class="sitem" style="cursor:default;"><div class="stxt" style="font-weight:500;">${esc(F[p.i])} ↔ ${esc(F[p.j])}</div><div class="smeta">No signals in both</div></div>`),
+            ...abs.map(p => `<div class="sitem" style="cursor:default;"><div class="stxt" style="font-weight:500;">${esc(F[p.i])} ↔ ${esc(F[p.j])}</div><div class="smeta">${p.c} signals · only ×${p.l.toFixed(1)} of what chance predicts</div></div>`)].join('') || '<p class="v2msg">No notable gaps.</p>';
+        function sideFor(a, b) {
+            const tp = [];
+            D.pair.forEach((sigs, k) => { const [x, y] = k.split('|').map(Number); const fx = D.T[x].f, fy = D.T[y].f; if ((fx === a && fy === b) || (fx === b && fy === a)) tp.push({ x, y, sigs, l: D.lift(x, y) }); });
+            tp.sort((p, q) => q.sigs.length - p.sigs.length || q.l - p.l);
+            document.getElementById('v2hm-side-t').innerHTML = `${esc(F[a])} ↔ ${esc(F[b])} <span class="chint"><a href="#" id="v2hm-clear" style="color:var(--txt3)">back to top links</a></span>`;
+            document.getElementById('v2hm-side').innerHTML = `<div class="sitem" data-all="1"><div class="stxt" style="font-weight:500;">All ${m[a][b].length} signals in both families</div><div class="smeta">×${L(a, b).toFixed(1)} chance · open list</div></div>` +
+                tp.slice(0, 8).map((p, k) => `<div class="sitem" data-k="${k}"><div class="stxt">${esc(D.T[p.x].n)} + ${esc(D.T[p.y].n)}</div><div class="smeta">${p.sigs.length} signal${p.sigs.length > 1 ? 's' : ''} · ×${p.l.toFixed(1)}</div></div>`).join('');
+            document.querySelectorAll('#v2hm-side .sitem').forEach(el => el.onclick = () => {
+                if (el.dataset.all) v2Open(F[a] + ' ↔ ' + F[b], m[a][b].length + ' signals', m[a][b]);
+                else { const p = tp[+el.dataset.k]; v2Open(D.T[p.x].n + ' + ' + D.T[p.y].n, p.sigs.length + ' shared signals', p.sigs); }
+            });
+            document.getElementById('v2hm-clear').onclick = e => { e.preventDefault(); hmSel = null; drawCooc(D); };
+        }
+        if (hmSel) sideFor(hmSel[0], hmSel[1]);
+    }
+    window.v2HmMode = function (m) { hmMode = m; hmSel = null; if (V2) drawCooc(V2); };
+
+    /* ── NETWORK: Focus + New connections ─────────────────────── */
+    let netView = 'focus', focus = null, rank = 'lift', win = 180;
+    try { const f = localStorage.getItem('v2-net-focus'); if (f) focus = f; } catch (e) {}
+    window.v2Net = function () {
+        const box = document.getElementById('v2net');
+        if (!V2) box.innerHTML = '<p class="v2msg">Loading tags…</p>';
+        v2Load().then(drawNet).catch(e => fail(box, e));
+    };
+    window.v2NetView = function (v) { netView = v; if (V2) drawNet(V2); };
+    function drawNet(D) {
+        document.querySelectorAll('#v2net-mode button').forEach(b => b.classList.toggle('on', b.dataset.v === netView));
+        netView === 'focus' ? drawFocus(D) : drawNew(D);
+    }
+    function setFocus(D, i) { focus = D.T[i].n; try { localStorage.setItem('v2-net-focus', focus); } catch (e) {} netView = 'focus'; drawNet(D); }
+
+    function drawFocus(D) {
+        const T = D.T, cnt = D.cnt;
+        let f = T.findIndex(t => t.n === focus); if (f < 0) f = T.findIndex(t => t.n === 'AI agents'); if (f < 0) f = cnt.indexOf(Math.max(...cnt));
+        const nb = [];
+        T.forEach((t, j) => { if (j === f) return; const s = D.shared(f, j).length; if (s >= 2) nb.push({ j, s, l: D.lift(f, j) }); });
+        nb.sort(rank === 'lift' ? (a, b) => b.l - a.l || b.s - a.s : (a, b) => b.s - a.s || b.l - a.l);
+        const show = nb.slice(0, 12);
+        const W = 720, H = 540, cx = W / 2, cy = H / 2, Rin = 92, Rout = 205, maxS = Math.max(1, ...show.map(n => n.s)), maxC = Math.max(...cnt);
+        const r = c => 8 + Math.sqrt(c / maxC) * 18, sc = n => rank === 'lift' ? n.l : n.s;
+        const lo = Math.min(...show.map(sc)), hi = Math.max(...show.map(sc));
+        const tOf = v => hi > lo ? (Math.log(v) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)) : 1, dist = v => Rin + (1 - tOf(v)) * (Rout - Rin);
+        const groups = []; show.forEach(n => { let g = groups.find(g => g.f === T[n.j].f); if (!g) { g = { f: T[n.j].f, m: [] }; groups.push(g); } g.m.push(n); });
+        const GAP = 1.2, step = 2 * Math.PI / Math.max(show.length + GAP * groups.length, 1);
+        let ang = -Math.PI / 2 - step * (groups[0] ? groups[0].m.length - 1 : 0) / 2; const pos = [];
+        groups.forEach(g => { g.m.forEach(n => { const d = dist(sc(n)); pos.push({ ...n, a: ang, x: cx + d * Math.cos(ang), y: cy + d * Math.sin(ang), t: tOf(sc(n)) }); ang += step; }); ang += step * GAP; });
+        let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Strongest connections of ${esc(T[f].n)}">`;
+        const angs = pos.map(p => ((p.a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)).sort((a, b) => a - b);
+        let gapA = Math.PI / 4, gapW = 0; angs.forEach((a, i) => { const nx = i < angs.length - 1 ? angs[i + 1] : angs[0] + 2 * Math.PI; if (nx - a > gapW) { gapW = nx - a; gapA = a + (nx - a) / 2; } });
+        let marks = (rank === 'lift' ? [2, 3, 5, 10, 20, 40, 80] : [2, 3, 5, 10, 20, 40]).filter(v => v > lo * 1.15 && v < hi * 0.9);
+        if (marks.length > 3) marks = [marks[0], marks[Math.floor(marks.length / 2)], marks[marks.length - 1]];
+        const ringLabs = [];
+        if (show.length) [lo, ...marks].forEach((v, i) => { const d = dist(v); svg += `<circle cx="${cx}" cy="${cy}" r="${d}" fill="none" stroke="var(--bor)" stroke-dasharray="${i ? '2 4' : 'none'}"/>`; ringLabs.push({ x: cx + d * Math.cos(gapA), y: cy + d * Math.sin(gapA) + 3, t: rank === 'lift' ? '×' + (v < 10 ? v.toFixed(v % 1 ? 1 : 0) : Math.round(v)) : String(Math.round(v)) }); });
+        for (let i = 0; i < pos.length; i++) for (let k = i + 1; k < pos.length; k++) {
+            const s2 = D.shared(pos[i].j, pos[k].j).length; if (s2 < 2) continue;
+            const mx = (pos[i].x + pos[k].x) / 2, my = (pos[i].y + pos[k].y) / 2;
+            svg += `<path d="M${pos[i].x},${pos[i].y} Q${mx + (cx - mx) * 0.45},${my + (cy - my) * 0.45} ${pos[k].x},${pos[k].y}" fill="none" stroke="var(--txt3)" stroke-opacity=".35" stroke-width="${0.8 + Math.min(s2, 8) * 0.35}"/>`;
+        }
+        pos.forEach(p => svg += `<line x1="${cx}" y1="${cy}" x2="${p.x}" y2="${p.y}" stroke="var(--blue)" stroke-linecap="round" stroke-width="${1.2 + p.s / maxS * 8}" stroke-opacity="${(0.25 + p.t * 0.6).toFixed(2)}"/>`);
+        svg += `<circle cx="${cx}" cy="${cy}" r="${r(cnt[f]) + 6}" fill="var(--blue)"/><text x="${cx}" y="${cy + 4}" text-anchor="middle" style="fill:#fff;font-size:12px;font-family:var(--mono)">${cnt[f]}</text>`;
+        const labs = pos.map(p => {
+            const rr = r(cnt[p.j]), c = Math.cos(p.a), sN = Math.sin(p.a), right = c > 0.25, left = c < -0.25, anc = right ? 'start' : left ? 'end' : 'middle';
+            const lx = p.x + (right ? rr + 7 : left ? -rr - 7 : 0), lines = []; let cur = '';
+            T[p.j].n.split(' ').forEach(w => { if ((cur + ' ' + w).trim().length > 19 && cur) { lines.push(cur); cur = w; } else cur = (cur + ' ' + w).trim(); }); lines.push(cur);
+            const h = lines.length * 14 + 14, w = Math.max(...lines.map(l => l.length * 6.7), 110);
+            const top = (right || left) ? p.y - h / 2 + 3 : (sN < 0 ? p.y - rr - 4 - h : p.y + rr + 4);
+            return { p, rr, anc, lx, lines, h, w, top, x0: anc === 'start' ? lx : anc === 'end' ? lx - w : lx - w / 2 };
+        });
+        for (let it = 0; it < 40; it++) {
+            let moved = false;
+            for (let i = 0; i < labs.length; i++) for (let k = i + 1; k < labs.length; k++) {
+                const A = labs[i], B = labs[k], ox = Math.min(A.x0 + A.w, B.x0 + B.w) - Math.max(A.x0, B.x0), oy = Math.min(A.top + A.h, B.top + B.h) - Math.max(A.top, B.top);
+                if (ox > 0 && oy > 0) { const push = oy / 2 + 1, up = A.top < B.top ? A : B, dn = up === A ? B : A; up.top -= push; dn.top += push; moved = true; }
+            }
+            labs.forEach(A => pos.forEach(q => { if (q === A.p) return; const rq = r(cnt[q.j]) + 3;
+                if (q.x + rq > A.x0 && q.x - rq < A.x0 + A.w && q.y + rq > A.top && q.y - rq < A.top + A.h) { A.top += (q.y < A.top + A.h / 2) ? (q.y + rq - A.top) + 1 : -((A.top + A.h) - (q.y - rq)) - 1; moved = true; } }));
+            if (!moved) break;
+        }
+        labs.forEach(Lb => { Lb.top = Math.max(52, Math.min(H - Lb.h - 2, Lb.top)); const p = Lb.p, y = Lb.top + 11;
+            svg += `<g class="v2nb" data-j="${p.j}" tabindex="0" role="button" aria-label="${esc(T[p.j].n)}, ${p.s} shared signals"><circle cx="${p.x}" cy="${p.y}" r="${Lb.rr}" fill="var(--field)" stroke="var(--txt3)" stroke-width="1.5"/>
+              <text class="v2lbl" x="${Lb.lx}" y="${y}" text-anchor="${Lb.anc}">${Lb.lines.map((l, k) => `<tspan x="${Lb.lx}" dy="${k ? 14 : 0}">${esc(l)}</tspan>`).join('')}</text>
+              <text class="v2sub" x="${Lb.lx}" y="${y + Lb.lines.length * 14}" text-anchor="${Lb.anc}">${p.s} shared · ×${p.l.toFixed(1)}</text></g>`; });
+        ringLabs.forEach(R => { if (!labs.some(Lb => R.x > Lb.x0 - 12 && R.x < Lb.x0 + Lb.w + 12 && R.y > Lb.top - 4 && R.y < Lb.top + Lb.h + 8)) svg += `<text class="v2sub" x="${R.x}" y="${R.y}" text-anchor="middle">${R.t}</text>`; });
+        svg += `<text class="v2ttl" x="10" y="26">${esc(T[f].n)}</text><text class="v2sub" x="10" y="44">${cnt[f]} signals · ${esc(D.fams[T[f].f])}</text></svg>`;
+        const sugg = T.map((t, i) => i).filter(i => i !== f).sort((a, b) => cnt[b] - cnt[a]).slice(0, 6);
+        document.getElementById('v2net').innerHTML = `<div class="v2grid"><div>
+            <div class="v2pick"><input id="v2tagq" list="v2taglist" placeholder="Focus on a tag…" aria-label="Focus on a tag"><datalist id="v2taglist">${T.map(t => `<option value="${esc(t.n)}">`).join('')}</datalist>
+            <div class="v2chips">${sugg.map(i => `<button class="v2chip" data-f="${i}">${esc(T[i].n)}</button>`).join('')}</div></div>
+            ${show.length ? svg : '<p class="v2msg">No connections shared by 2+ signals yet.</p>'}
+            <p class="v2note">Closer to the centre = stronger connection${rank === 'lift' ? ' (more surprising)' : ' (more shared signals)'} · thicker line = more shared signals · grouped by family · grey arcs = those tags also appear together. Click a tag to see the signals; double-click to re-centre.</p></div>
+          <div><div class="ctitle">Ranked connections <span class="v2seg"><button data-r="lift" class="${rank === 'lift' ? 'on' : ''}">Surprise</button><button data-r="vol" class="${rank === 'vol' ? 'on' : ''}">Volume</button></span></div>
+            <div class="slist">${show.map(n => `<div class="sitem" data-j="${n.j}"><div class="stxt" style="font-weight:500;">${esc(T[n.j].n)}</div><div class="smeta">${n.s} shared · ×${n.l.toFixed(1)} chance · since ${fmtD(D.first.get(D.key(f, n.j)))}</div></div>`).join('') || '<p class="v2msg">None yet.</p>'}</div>
+            <div class="sitem" id="v2all" style="margin-top:9px"><div class="stxt">All ${cnt[f]} signals tagged ${esc(T[f].n)}</div><div class="smeta">${esc(T[f].d)}</div></div></div></div>`;
+        const openPair = j => v2Open(T[f].n + ' + ' + T[j].n, D.shared(f, j).length + ' shared signals · ×' + D.lift(f, j).toFixed(1) + ' chance', D.shared(f, j));
+        const q = document.getElementById('v2tagq');
+        q.addEventListener('change', () => { const i = T.findIndex(t => t.n.toLowerCase() === q.value.trim().toLowerCase()); if (i > -1) setFocus(D, i); });
+        document.querySelectorAll('#v2net .v2chip').forEach(b => b.onclick = () => setFocus(D, +b.dataset.f));
+        document.querySelectorAll('#v2net [data-r]').forEach(b => b.onclick = () => { rank = b.dataset.r; drawNet(D); });
+        document.querySelectorAll('#v2net .v2nb').forEach(g => { g.onclick = () => openPair(+g.dataset.j); g.ondblclick = () => setFocus(D, +g.dataset.j); g.onkeydown = e => { if (e.key === 'Enter') openPair(+g.dataset.j); }; });
+        document.querySelectorAll('#v2net .slist .sitem[data-j]').forEach(el => { el.onclick = () => openPair(+el.dataset.j); el.ondblclick = () => setFocus(D, +el.dataset.j); });
+        document.getElementById('v2all').onclick = () => v2Open(T[f].n, cnt[f] + ' signals', D.S.filter(s => s.t.includes(f)));
+    }
+
+    function drawNew(D) {
+        const T = D.T, cut = new Date(new Date(D.latest + 'T12:00:00') - win * 864e5).toISOString().slice(0, 10);
+        const rows = []; D.pair.forEach((sigs, k) => { if (D.first.get(k) >= cut) { const [a, b] = k.split('|').map(Number); rows.push({ a, b, sigs, l: D.lift(a, b), f: D.first.get(k) }); } });
+        rows.sort((x, y) => y.sigs.length - x.sigs.length || y.l - x.l || (x.f < y.f ? 1 : -1));
+        const strong = rows.filter(r => r.sigs.length >= 2), single = rows.length - strong.length;
+        document.getElementById('v2net').innerHTML = `<div class="ctitle" style="margin-bottom:6px">Pairs that first appeared together after ${fmtD(cut)}
+            <span class="v2seg">${[90, 180, 365].map(d => `<button data-w="${d}" class="${win === d ? 'on' : ''}">${d === 365 ? '1 year' : d + ' days'}</button>`).join('')}</span></div>
+          <p class="v2note" style="margin:0 0 12px">Tag pairs with no shared signal before this date that have since appeared together at least twice. ${single} more appeared once and may be noise. Click a pair for its signals; double-click to focus on the first tag.</p>
+          <div class="slist">${strong.slice(0, 40).map((r, k) => `<div class="sitem" data-k="${k}"><div class="stxt" style="font-weight:500;">${esc(T[r.a].n)} + ${esc(T[r.b].n)}</div><div class="smeta">${r.sigs.length} shared · ×${r.l.toFixed(1)} chance · since ${fmtD(r.f)}${r.sigs.length >= 3 ? ' · repeating' : ''}</div></div>`).join('') || '<p class="v2msg">No new connections in this window.</p>'}</div>`;
+        document.querySelectorAll('#v2net [data-w]').forEach(b => b.onclick = () => { win = +b.dataset.w; drawNet(D); });
+        document.querySelectorAll('#v2net .sitem[data-k]').forEach(el => { const r = strong[+el.dataset.k];
+            el.onclick = () => v2Open(T[r.a].n + ' + ' + T[r.b].n, r.sigs.length + ' shared signals · new since ' + fmtD(r.f), r.sigs);
+            el.ondblclick = () => setFocus(D, r.a); });
+    }
+})();
+</script>
+
 </body>
 </html>
