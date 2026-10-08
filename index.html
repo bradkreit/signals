@@ -691,6 +691,15 @@
         padding: 20px 24px;
     }
 
+    .dart { display:flex; gap:12px; align-items:center; text-decoration:none; color:var(--txt); border:1px solid var(--bor); background:var(--sur2); margin-bottom:10px; overflow:hidden; }
+    .dart:hover { background:var(--sur3); }
+    .dart img { width:96px; height:64px; object-fit:cover; flex-shrink:0; display:block; }
+    .dart-t { font-size:13px; font-weight:600; line-height:1.35; padding:8px 10px 8px 0; display:flex; flex-direction:column; gap:3px; min-width:0; }
+    .dart img + .dart-t { padding-left:0; }
+    .dart > .dart-t:first-child { padding-left:10px; }
+    .dart-s { font-family:var(--mono); font-size:10px; font-weight:400; color:var(--txt3); }
+    .dtag-core { border-color:var(--txt2) !important; color:var(--txt) !important; font-weight:600; }
+
     .dsig {
         border: 1px solid var(--bor);
         border-radius: 0;
@@ -2776,13 +2785,15 @@
         document.getElementById('errmsg').style.display = 'none';
         const lmsg = document.getElementById('lmsg');
         try {
-            lmsg.textContent = 'Fetching LiveFeed…';
-            const lr = await fetchCSV('LiveFeed');
-            lmsg.textContent = 'Fetching Archive… (LiveFeed: ' + lr.length + ' rows)';
-            const ar = await fetchCSV('Archive');
+            // Signals now live in 'Signals_clean' (same A–K layout as Archive, plus
+            // L title · M article URL · N source · O tag families). Falls back to Archive.
+            lmsg.textContent = 'Fetching signals…';
+            const lr = [];
+            let ar = await fetchCSV('Signals_clean');
+            if (String((ar[0] || [])[11] || '').trim() !== 'Article title') ar = await fetchCSV('Archive');
             lmsg.textContent = 'Fetching Summary… (Archive: ' + ar.length + ' rows)';
             const sr = await fetchCSV('Summary');
-            lmsg.textContent = 'Processing ' + lr.length + ' LiveFeed + ' + ar.length + ' Archive rows…';
+            lmsg.textContent = 'Processing ' + ar.length + ' signals…';
 
             // Thoughts sync runs in the background — never blocks the main dashboard load.
             // It has its own internal timeout so it can never hang.
@@ -2801,6 +2812,11 @@
                 const steep = (r[6] || '').trim();
                 // r[7] = Horizon (col H) — loaded but intentionally not displayed
                 const entities = (r[8] || '').trim();
+                const image = (r[9] || '').trim();
+                const title = (r[11] || '').trim();
+                const articleUrl = (r[12] || '').trim();
+                const source = (r[13] || '').trim();
+                const coreTags = String(r[3] || '').split(',').map(t => t.trim()).filter(Boolean);
 
                 if (!url.startsWith('http'))
                     continue;
@@ -2832,6 +2848,11 @@
                     // whichever is active for display
                     tagList,
                     theme,
+                    image,
+                    title,
+                    articleUrl,
+                    source,
+                    coreTags,
                     idx: ROWS.length
                 });
             }
@@ -3398,9 +3419,18 @@
             bg: '#eee',
             fg: '#555'
         };
-        const txt = r.content.replace(/https?:\/\/\S+/g, '').trim();
+        let txt = r.content.replace(/https?:\/\/\S+/g, '').trim();
         const um = r.content.match(/https?:\/\/\S+/),
-            aurl = um ? um[0] : null;
+            aurl = r.articleUrl || (um ? um[0] : null);
+        if (r.title) txt = txt.replace('[' + r.title + ']', '').trim();
+        const safeImg = /^https:\/\//.test(r.image || '') ? r.image : '';
+        const articleBlock = r.title ? `<a class="dart" href="${eh(aurl || r.url)}" target="_blank" rel="noopener">
+        ${safeImg ? `<img src="${eh(safeImg)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}
+        <span class="dart-t">${eh(r.title)}<span class="dart-s">${eh(r.source || '')}</span></span></a>` : '';
+        const coreHtml = (r.coreTags || []).map(t => {
+            const safe = t.replace(/'/g, "\\'");
+            return `<span class="dtag dtag-core" onclick="filterByCore('${safe}')">${eh(t)}</span>`;
+        }).join('');
 
         // Use AI-enhanced tags if available, else original
         const displayTags = r.tagList.slice(0, 8);
@@ -3451,7 +3481,8 @@
         }
 
         return `<div class="dsig">
-    <p class="dtxt">${eh(txt)}</p>
+    ${articleBlock}
+    ${txt ? `<p class="dtxt">${eh(txt)}</p>` : ''}
     ${summaryBlock}
     <div class="dmeta">
       <span class="dtheme" style="background:${
@@ -3461,12 +3492,18 @@
       ${aurl ? `<a href="${eh(aurl)}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:11px;color:var(--blue);text-decoration:none;background:var(--sur2);border:1px solid var(--bor);padding:3px 10px;border-radius:0;display:inline-flex;align-items:center;gap:4px;">↗ read article</a>` : ''}
       ${r.url && r.url !== aurl ? `<a href="${eh(r.url)}" target="_blank" rel="noopener" style="font-family:var(--mono);font-size:11px;color:var(--txt2);text-decoration:none;background:var(--sur2);border:1px solid var(--bor);padding:3px 10px;border-radius:0;display:inline-flex;align-items:center;gap:4px;">↗ Bluesky post</a>` : ''}
     </div>
-    <div class="dtags">${
+    <div class="dtags">${coreHtml}${
         tagHtml}</div>
     ${entitiesHtml}
     ${relatedHtml}
   </div>`
         ;
+    }
+
+    // Filter by a controlled-vocabulary tag (col D)
+    function filterByCore(tag) {
+        const matched = ROWS.filter(r => (r.coreTags || []).includes(tag));
+        openD('Tag: ' + tag, matched.length + ' signal' + (matched.length !== 1 ? 's' : ''), matched);
     }
 
     // Filter entire dashboard by a tag — opens the drawer
@@ -3580,9 +3617,18 @@
             bg: '#eee',
             fg: '#555'
         };
-        const txt = r.content.replace(/https?:\/\/\S+/g, '').trim();
+        let txt = r.content.replace(/https?:\/\/\S+/g, '').trim();
         const um = r.content.match(/https?:\/\/\S+/),
-            aurl = um ? um[0] : null;
+            aurl = r.articleUrl || (um ? um[0] : null);
+        if (r.title) txt = txt.replace('[' + r.title + ']', '').trim();
+        const safeImg = /^https:\/\//.test(r.image || '') ? r.image : '';
+        const articleBlock = r.title ? `<a class="dart" href="${eh(aurl || r.url)}" target="_blank" rel="noopener">
+        ${safeImg ? `<img src="${eh(safeImg)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}
+        <span class="dart-t">${eh(r.title)}<span class="dart-s">${eh(r.source || '')}</span></span></a>` : '';
+        const coreHtml = (r.coreTags || []).map(t => {
+            const safe = t.replace(/'/g, "\\'");
+            return `<span class="dtag dtag-core" onclick="filterByCore('${safe}')">${eh(t)}</span>`;
+        }).join('');
         const linkUrl = aurl || r.url || null;
         const tagChips = (r.tagList || []).slice(0, 4).map(t => {
             const safe = t.replace(/'/g, "\\'");
